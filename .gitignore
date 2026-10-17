@@ -1,0 +1,14 @@
+# مشروع Xcode يُولَّد بـ XcodeGen على جهاز قِت هب
+*.xcodeproj
+Tarabee3/Info.plist
+build/
+DerivedData/
+
+# بيئة
+.env*
+
+# أسرار — لا تُدفع أبداً
+*.p8
+*.p12
+*.mobileprovision
+*service-account*.json
