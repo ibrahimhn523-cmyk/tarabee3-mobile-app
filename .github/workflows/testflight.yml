@@ -23,7 +23,7 @@ jobs:
       HAS_SIGNING: ${{ secrets.ASC_KEY_P8_BASE64 != '' && secrets.ASC_KEY_ID != '' && secrets.ASC_ISSUER_ID != '' && secrets.APPLE_TEAM_ID != '' }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Xcode version
         run: |
@@ -32,9 +32,16 @@ jobs:
           echo "ARCHIVE_PATH=$RUNNER_TEMP/Tarabee3.xcarchive" >> "$GITHUB_ENV"
 
       - name: Generate project (XcodeGen)
+        env:
+          XCODEGEN_VERSION: "2.46.0"
+          XCODEGEN_SHA256: 4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806
         run: |
-          brew install xcodegen
-          xcodegen generate
+          # إصدار مقفل ومتحقَّق من بصمته، لا أحدث ما في brew
+          curl -sSfL -o "$RUNNER_TEMP/xcodegen.zip"             "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          echo "${XCODEGEN_SHA256}  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate
 
       - name: Write signing key
         if: env.HAS_SIGNING == 'true'
@@ -120,7 +127,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "رقم البناء: $BUILD_NUMBER"
-          xcodebuild -version | head -1
+          xcodebuild -version
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" --jq '
             .jobs[] | select(.name == "build") | .steps[]
             | select(.completed_at != null and .started_at != null)
