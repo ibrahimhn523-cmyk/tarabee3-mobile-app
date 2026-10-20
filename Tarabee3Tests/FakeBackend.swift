@@ -33,6 +33,8 @@ final class FakeBackend: ProfileBackend {
         return saved
     }
 
+    func refreshTrainingPack() async {}
+
     func deleteAccount() async throws(ProfileError) {
         deletions += 1
         player = nil

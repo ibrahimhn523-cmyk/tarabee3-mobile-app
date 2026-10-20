@@ -15,6 +15,7 @@ enum Copy {
         static let wins = "الانتصارات"
         static let noMatches = "لا مباريات بعد." // §١٠
         static let settings = "الإعدادات"
+        static let training = "تدريب"
     }
 
     enum Settings {
@@ -33,6 +34,47 @@ enum Copy {
         static let deleteFinal = "احذف نهائياً"
         static let cancel = "إلغاء"
         static let close = "أغلق"
+    }
+
+    enum Training {
+        static let title = "تدريب"
+        static let line = "مباراة ضد لاعبين آليين، بلا إنترنت، ولا تُحسب في ملفك."
+        static let size = "الحجم"
+        static let board = "اللوح"
+        static let three = "ثلاثية"
+        static let four = "رباعية"
+        static let five = "خماسية"
+        static let start = "ابدأ"
+    }
+
+    enum Match {
+        static let ready = "استعدّ"
+        static let yourTurn = "دورك"
+        static let chooseSquare = "اختر مربعاً فارغاً مركزاً لصليبك"
+        static let commit = "اعتمد"
+        static let boardTab = "اللوح"
+        static let questionTab = "السؤال"
+        static let bot = "آلي"
+        static let truthTrue = "صح"
+        static let truthFalse = "خطأ"
+        static func turnOf(_ name: String) -> String { "دور \(name)" }
+        static func choosing(_ name: String) -> String { "\(name) يختار مربعه" }
+        static func correct(_ name: String) -> String { "أصاب \(name)" }
+        static func wrong(_ name: String) -> String { "أخطأ \(name)" }
+        static func timeout(_ name: String) -> String { "انتهت مهلة \(name)" }
+        static func dropped(_ name: String) -> String { "انتهت مهلة اختيار \(name)" }
+        static let committedMine = "اعتُمد اختيارك." // §١٠
+        static let wrongMine = "إجابة خاطئة."
+        static let timeoutMine = "انتهت المهلة."
+        static let droppedMine = "انتهت مهلة الاختيار. ضاع الدور." // §١٠
+        static func winner(_ name: String) -> String { "فاز \(name)" }
+        static let tie = "تعادل على المرتبة الأولى"
+        static let playAgain = "مباراة جديدة"
+        static let home = "الرئيسية"
+        static let exit = "اخرج"
+        static let exitTitle = "الخروج من التدريب"
+        static let exitConfirm = "تخرج وتنتهي المباراة. التدريب لا يُحسب في ملفك."
+        static let packMissing = "يلزم اتصال مرة لتجهيز التدريب." // §١٠
     }
 
     enum Picker {

@@ -22,6 +22,14 @@ targets:
     platform: iOS
     sources:
       - path: Tarabee3
+        excludes:
+          - Engine/engine.js
+          - Engine/training-pack.json
+      # المحرّك المحزوم وحزمة التدريب مواردٌ يقرؤها التطبيق (tools/build-engine.mjs، tools/gen-training-pack.mjs)
+      - path: Tarabee3/Engine/engine.js
+        buildPhase: resources
+      - path: Tarabee3/Engine/training-pack.json
+        buildPhase: resources
     dependencies:
       - package: Firebase
         product: FirebaseAuth

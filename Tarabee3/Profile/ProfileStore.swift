@@ -31,6 +31,7 @@ final class ProfileStore {
         phase = .loading
         do {
             let id = try await backend.signIn()
+            Task { await backend.refreshTrainingPack() }
             backend.observePlayer(id: id) { [weak self] player in
                 guard let self, !self.deleting else { return }
                 self.player = player

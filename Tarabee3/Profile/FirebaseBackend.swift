@@ -54,6 +54,11 @@ final class FirebaseBackend: ProfileBackend {
         try? Auth.auth().signOut()
     }
 
+    func refreshTrainingPack() async {
+        guard let token = try? await token() else { return }
+        await TrainingPack.refresh(api: api, token: token)
+    }
+
     private func token() async throws(ProfileError) -> String {
         guard let user = Auth.auth().currentUser else { throw .server }
         do { return try await user.getIDToken() } catch { throw .offline }

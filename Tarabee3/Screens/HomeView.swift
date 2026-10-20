@@ -7,6 +7,7 @@ struct HomeView: View {
     let player: Player
 
     @State private var showSettings = false
+    @State private var showTraining = false
     @AppStorage(Appearance.storageKey) private var appearance: Appearance = .system
     @Environment(\.colorScheme) private var scheme
 
@@ -44,7 +45,18 @@ struct HomeView: View {
             .padding(.horizontal, Space.s(3))
             .padding(.vertical, Space.s(2))
         }
+        // المباراة السريعة تصير الزرّ الأساسي مع M-06؛ حتى ذلك التدريب وحده (M-04)
+        .safeAreaInset(edge: .bottom) {
+            Button(Copy.Home.training) { showTraining = true }
+                .appButton(.primary)
+                .padding(.horizontal, Space.s(3))
+                .padding(.vertical, Space.s(2))
+                .background(palette.ground)
+        }
         .appBackground()
+        .fullScreenCover(isPresented: $showTraining) {
+            TrainingSetupView(player: player) { showTraining = false }.appEnvironment(appearance)
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView(store: store, player: player).appEnvironment(appearance)
         }

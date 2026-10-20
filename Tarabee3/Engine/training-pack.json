@@ -1,0 +1,1607 @@
+{
+ "version": "placeholder-1",
+ "questions": [
+  {
+   "id": "p-1",
+   "type": "mcq",
+   "text": "كم يساوي 7 × 12؟",
+   "options": [
+    "84",
+    "93",
+    "76",
+    "90"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-2",
+   "type": "truefalse",
+   "text": "13 + 16 = 29",
+   "correct": true
+  },
+  {
+   "id": "p-3",
+   "type": "mcq",
+   "text": "كم يساوي 36 − 14؟",
+   "options": [
+    "17",
+    "27",
+    "22",
+    "19"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-4",
+   "type": "mcq",
+   "text": "كم يساوي 11 × 4؟",
+   "options": [
+    "39",
+    "44",
+    "54",
+    "49"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-5",
+   "type": "truefalse",
+   "text": "13 + 45 = 63",
+   "correct": false
+  },
+  {
+   "id": "p-6",
+   "type": "mcq",
+   "text": "كم يساوي 53 − 14؟",
+   "options": [
+    "39",
+    "47",
+    "43",
+    "46"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-7",
+   "type": "mcq",
+   "text": "كم يساوي 7 × 7؟",
+   "options": [
+    "47",
+    "49",
+    "37",
+    "59"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-8",
+   "type": "truefalse",
+   "text": "19 + 15 = 28",
+   "correct": false
+  },
+  {
+   "id": "p-9",
+   "type": "mcq",
+   "text": "كم يساوي 53 − 43؟",
+   "options": [
+    "17",
+    "10",
+    "12",
+    "18"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-10",
+   "type": "mcq",
+   "text": "كم يساوي 10 × 6؟",
+   "options": [
+    "67",
+    "51",
+    "60",
+    "48"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-11",
+   "type": "truefalse",
+   "text": "35 + 26 = 58",
+   "correct": false
+  },
+  {
+   "id": "p-12",
+   "type": "mcq",
+   "text": "كم يساوي 41 − 13؟",
+   "options": [
+    "29",
+    "34",
+    "36",
+    "28"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-13",
+   "type": "mcq",
+   "text": "كم يساوي 6 × 11؟",
+   "options": [
+    "66",
+    "77",
+    "65",
+    "71"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-14",
+   "type": "truefalse",
+   "text": "45 + 27 = 72",
+   "correct": true
+  },
+  {
+   "id": "p-15",
+   "type": "mcq",
+   "text": "كم يساوي 30 − 24؟",
+   "options": [
+    "6",
+    "10",
+    "0",
+    "11"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-16",
+   "type": "mcq",
+   "text": "كم يساوي 11 × 8؟",
+   "options": [
+    "87",
+    "88",
+    "82",
+    "96"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-17",
+   "type": "truefalse",
+   "text": "47 + 23 = 70",
+   "correct": true
+  },
+  {
+   "id": "p-18",
+   "type": "mcq",
+   "text": "كم يساوي 48 − 27؟",
+   "options": [
+    "21",
+    "26",
+    "16",
+    "20"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-19",
+   "type": "mcq",
+   "text": "كم يساوي 3 × 6؟",
+   "options": [
+    "18",
+    "26",
+    "30",
+    "8"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-20",
+   "type": "truefalse",
+   "text": "38 + 36 = 70",
+   "correct": false
+  },
+  {
+   "id": "p-21",
+   "type": "mcq",
+   "text": "كم يساوي 39 − 17؟",
+   "options": [
+    "27",
+    "19",
+    "22",
+    "17"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-22",
+   "type": "mcq",
+   "text": "كم يساوي 9 × 3؟",
+   "options": [
+    "27",
+    "24",
+    "30",
+    "34"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-23",
+   "type": "truefalse",
+   "text": "24 + 25 = 49",
+   "correct": true
+  },
+  {
+   "id": "p-24",
+   "type": "mcq",
+   "text": "كم يساوي 56 − 53؟",
+   "options": [
+    "12",
+    "7",
+    "2",
+    "3"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-25",
+   "type": "mcq",
+   "text": "كم يساوي 7 × 8؟",
+   "options": [
+    "56",
+    "65",
+    "52",
+    "51"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-26",
+   "type": "truefalse",
+   "text": "50 + 46 = 96",
+   "correct": true
+  },
+  {
+   "id": "p-27",
+   "type": "mcq",
+   "text": "كم يساوي 44 − 30؟",
+   "options": [
+    "5",
+    "20",
+    "11",
+    "14"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-28",
+   "type": "mcq",
+   "text": "كم يساوي 4 × 4؟",
+   "options": [
+    "16",
+    "17",
+    "4",
+    "6"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-29",
+   "type": "truefalse",
+   "text": "12 + 18 = 30",
+   "correct": true
+  },
+  {
+   "id": "p-30",
+   "type": "mcq",
+   "text": "كم يساوي 41 − 11؟",
+   "options": [
+    "34",
+    "35",
+    "39",
+    "30"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-31",
+   "type": "mcq",
+   "text": "كم يساوي 8 × 9؟",
+   "options": [
+    "74",
+    "66",
+    "71",
+    "72"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-32",
+   "type": "truefalse",
+   "text": "22 + 56 = 76",
+   "correct": false
+  },
+  {
+   "id": "p-33",
+   "type": "mcq",
+   "text": "كم يساوي 29 − 26؟",
+   "options": [
+    "3",
+    "7",
+    "5",
+    "8"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-34",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 2؟",
+   "options": [
+    "18",
+    "23",
+    "24",
+    "16"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-35",
+   "type": "truefalse",
+   "text": "35 + 11 = 40",
+   "correct": false
+  },
+  {
+   "id": "p-36",
+   "type": "mcq",
+   "text": "كم يساوي 41 − 17؟",
+   "options": [
+    "19",
+    "28",
+    "15",
+    "24"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-37",
+   "type": "mcq",
+   "text": "كم يساوي 4 × 9؟",
+   "options": [
+    "29",
+    "27",
+    "36",
+    "38"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-38",
+   "type": "truefalse",
+   "text": "14 + 16 = 21",
+   "correct": false
+  },
+  {
+   "id": "p-39",
+   "type": "mcq",
+   "text": "كم يساوي 15 − 11؟",
+   "options": [
+    "5",
+    "3",
+    "6",
+    "4"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-40",
+   "type": "mcq",
+   "text": "كم يساوي 3 × 8؟",
+   "options": [
+    "31",
+    "25",
+    "29",
+    "24"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-41",
+   "type": "truefalse",
+   "text": "41 + 40 = 81",
+   "correct": true
+  },
+  {
+   "id": "p-42",
+   "type": "mcq",
+   "text": "كم يساوي 60 − 22؟",
+   "options": [
+    "43",
+    "35",
+    "38",
+    "42"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-43",
+   "type": "mcq",
+   "text": "كم يساوي 10 × 2؟",
+   "options": [
+    "20",
+    "24",
+    "28",
+    "10"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-44",
+   "type": "truefalse",
+   "text": "16 + 26 = 42",
+   "correct": true
+  },
+  {
+   "id": "p-45",
+   "type": "mcq",
+   "text": "كم يساوي 27 − 26؟",
+   "options": [
+    "5",
+    "2",
+    "1",
+    "8"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-46",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 4؟",
+   "options": [
+    "40",
+    "46",
+    "48",
+    "43"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-47",
+   "type": "truefalse",
+   "text": "59 + 37 = 92",
+   "correct": false
+  },
+  {
+   "id": "p-48",
+   "type": "mcq",
+   "text": "كم يساوي 38 − 37؟",
+   "options": [
+    "1",
+    "3",
+    "8",
+    "7"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-49",
+   "type": "mcq",
+   "text": "كم يساوي 5 × 6؟",
+   "options": [
+    "39",
+    "42",
+    "35",
+    "30"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-50",
+   "type": "truefalse",
+   "text": "50 + 58 = 108",
+   "correct": true
+  },
+  {
+   "id": "p-51",
+   "type": "mcq",
+   "text": "كم يساوي 60 − 33؟",
+   "options": [
+    "27",
+    "23",
+    "26",
+    "18"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-52",
+   "type": "mcq",
+   "text": "كم يساوي 9 × 4؟",
+   "options": [
+    "36",
+    "29",
+    "42",
+    "39"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-53",
+   "type": "truefalse",
+   "text": "35 + 43 = 78",
+   "correct": true
+  },
+  {
+   "id": "p-54",
+   "type": "mcq",
+   "text": "كم يساوي 51 − 28؟",
+   "options": [
+    "25",
+    "23",
+    "27",
+    "22"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-55",
+   "type": "mcq",
+   "text": "كم يساوي 10 × 4؟",
+   "options": [
+    "32",
+    "38",
+    "40",
+    "51"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-56",
+   "type": "truefalse",
+   "text": "38 + 16 = 54",
+   "correct": true
+  },
+  {
+   "id": "p-57",
+   "type": "mcq",
+   "text": "كم يساوي 44 − 43؟",
+   "options": [
+    "9",
+    "6",
+    "1",
+    "7"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-58",
+   "type": "mcq",
+   "text": "كم يساوي 8 × 8؟",
+   "options": [
+    "64",
+    "60",
+    "72",
+    "76"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-59",
+   "type": "truefalse",
+   "text": "50 + 20 = 62",
+   "correct": false
+  },
+  {
+   "id": "p-60",
+   "type": "mcq",
+   "text": "كم يساوي 54 − 44؟",
+   "options": [
+    "1",
+    "3",
+    "16",
+    "10"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-61",
+   "type": "mcq",
+   "text": "كم يساوي 2 × 8؟",
+   "options": [
+    "17",
+    "13",
+    "21",
+    "16"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-62",
+   "type": "truefalse",
+   "text": "53 + 53 = 99",
+   "correct": false
+  },
+  {
+   "id": "p-63",
+   "type": "mcq",
+   "text": "كم يساوي 26 − 16؟",
+   "options": [
+    "7",
+    "15",
+    "17",
+    "10"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-64",
+   "type": "mcq",
+   "text": "كم يساوي 2 × 11؟",
+   "options": [
+    "22",
+    "32",
+    "17",
+    "33"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-65",
+   "type": "truefalse",
+   "text": "18 + 31 = 49",
+   "correct": true
+  },
+  {
+   "id": "p-66",
+   "type": "mcq",
+   "text": "كم يساوي 32 − 12؟",
+   "options": [
+    "20",
+    "11",
+    "18",
+    "29"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-67",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 10؟",
+   "options": [
+    "115",
+    "120",
+    "113",
+    "128"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-68",
+   "type": "truefalse",
+   "text": "25 + 18 = 34",
+   "correct": false
+  },
+  {
+   "id": "p-69",
+   "type": "mcq",
+   "text": "كم يساوي 29 − 21؟",
+   "options": [
+    "8",
+    "14",
+    "13",
+    "4"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-70",
+   "type": "mcq",
+   "text": "كم يساوي 5 × 5؟",
+   "options": [
+    "20",
+    "25",
+    "14",
+    "16"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-71",
+   "type": "truefalse",
+   "text": "46 + 53 = 99",
+   "correct": true
+  },
+  {
+   "id": "p-72",
+   "type": "mcq",
+   "text": "كم يساوي 44 − 31؟",
+   "options": [
+    "13",
+    "21",
+    "14",
+    "7"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-73",
+   "type": "mcq",
+   "text": "كم يساوي 7 × 6؟",
+   "options": [
+    "47",
+    "52",
+    "42",
+    "36"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-74",
+   "type": "truefalse",
+   "text": "32 + 17 = 49",
+   "correct": true
+  },
+  {
+   "id": "p-75",
+   "type": "mcq",
+   "text": "كم يساوي 54 − 35؟",
+   "options": [
+    "10",
+    "19",
+    "11",
+    "27"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-76",
+   "type": "mcq",
+   "text": "كم يساوي 4 × 5؟",
+   "options": [
+    "22",
+    "13",
+    "18",
+    "20"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-77",
+   "type": "truefalse",
+   "text": "18 + 40 = 50",
+   "correct": false
+  },
+  {
+   "id": "p-78",
+   "type": "mcq",
+   "text": "كم يساوي 57 − 34؟",
+   "options": [
+    "21",
+    "22",
+    "19",
+    "23"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-79",
+   "type": "mcq",
+   "text": "كم يساوي 11 × 3؟",
+   "options": [
+    "23",
+    "34",
+    "33",
+    "44"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-80",
+   "type": "truefalse",
+   "text": "21 + 13 = 34",
+   "correct": true
+  },
+  {
+   "id": "p-81",
+   "type": "mcq",
+   "text": "كم يساوي 46 − 16؟",
+   "options": [
+    "33",
+    "31",
+    "30",
+    "22"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-82",
+   "type": "mcq",
+   "text": "كم يساوي 10 × 3؟",
+   "options": [
+    "21",
+    "30",
+    "37",
+    "32"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-83",
+   "type": "truefalse",
+   "text": "55 + 23 = 85",
+   "correct": false
+  },
+  {
+   "id": "p-84",
+   "type": "mcq",
+   "text": "كم يساوي 27 − 14؟",
+   "options": [
+    "21",
+    "13",
+    "20",
+    "4"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-85",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 6؟",
+   "options": [
+    "72",
+    "63",
+    "62",
+    "61"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-86",
+   "type": "truefalse",
+   "text": "30 + 13 = 43",
+   "correct": true
+  },
+  {
+   "id": "p-87",
+   "type": "mcq",
+   "text": "كم يساوي 56 − 31؟",
+   "options": [
+    "29",
+    "21",
+    "22",
+    "25"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-88",
+   "type": "mcq",
+   "text": "كم يساوي 8 × 6؟",
+   "options": [
+    "48",
+    "45",
+    "58",
+    "36"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-89",
+   "type": "truefalse",
+   "text": "26 + 21 = 47",
+   "correct": true
+  },
+  {
+   "id": "p-90",
+   "type": "mcq",
+   "text": "كم يساوي 57 − 33؟",
+   "options": [
+    "33",
+    "24",
+    "21",
+    "23"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-91",
+   "type": "mcq",
+   "text": "كم يساوي 10 × 10؟",
+   "options": [
+    "100",
+    "93",
+    "88",
+    "91"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-92",
+   "type": "truefalse",
+   "text": "53 + 15 = 65",
+   "correct": false
+  },
+  {
+   "id": "p-93",
+   "type": "mcq",
+   "text": "كم يساوي 34 − 26؟",
+   "options": [
+    "2",
+    "16",
+    "5",
+    "8"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-94",
+   "type": "mcq",
+   "text": "كم يساوي 7 × 11؟",
+   "options": [
+    "65",
+    "83",
+    "67",
+    "77"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-95",
+   "type": "truefalse",
+   "text": "48 + 43 = 91",
+   "correct": true
+  },
+  {
+   "id": "p-96",
+   "type": "mcq",
+   "text": "كم يساوي 30 − 18؟",
+   "options": [
+    "8",
+    "3",
+    "20",
+    "12"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-97",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 5؟",
+   "options": [
+    "58",
+    "60",
+    "53",
+    "72"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-98",
+   "type": "truefalse",
+   "text": "43 + 41 = 93",
+   "correct": false
+  },
+  {
+   "id": "p-99",
+   "type": "mcq",
+   "text": "كم يساوي 39 − 34؟",
+   "options": [
+    "2",
+    "1",
+    "6",
+    "5"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-100",
+   "type": "mcq",
+   "text": "كم يساوي 4 × 12؟",
+   "options": [
+    "47",
+    "54",
+    "45",
+    "48"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-101",
+   "type": "truefalse",
+   "text": "60 + 39 = 95",
+   "correct": false
+  },
+  {
+   "id": "p-102",
+   "type": "mcq",
+   "text": "كم يساوي 49 − 22؟",
+   "options": [
+    "18",
+    "27",
+    "29",
+    "22"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-103",
+   "type": "mcq",
+   "text": "كم يساوي 2 × 4؟",
+   "options": [
+    "3",
+    "8",
+    "2",
+    "9"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-104",
+   "type": "truefalse",
+   "text": "24 + 35 = 52",
+   "correct": false
+  },
+  {
+   "id": "p-105",
+   "type": "mcq",
+   "text": "كم يساوي 49 − 46؟",
+   "options": [
+    "7",
+    "6",
+    "3",
+    "11"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-106",
+   "type": "mcq",
+   "text": "كم يساوي 11 × 9؟",
+   "options": [
+    "110",
+    "99",
+    "96",
+    "101"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-107",
+   "type": "truefalse",
+   "text": "36 + 15 = 51",
+   "correct": true
+  },
+  {
+   "id": "p-108",
+   "type": "mcq",
+   "text": "كم يساوي 45 − 28؟",
+   "options": [
+    "25",
+    "17",
+    "11",
+    "14"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-109",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 9؟",
+   "options": [
+    "107",
+    "118",
+    "103",
+    "108"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-110",
+   "type": "truefalse",
+   "text": "22 + 55 = 77",
+   "correct": true
+  },
+  {
+   "id": "p-111",
+   "type": "mcq",
+   "text": "كم يساوي 29 − 25؟",
+   "options": [
+    "11",
+    "3",
+    "4",
+    "1"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-112",
+   "type": "mcq",
+   "text": "كم يساوي 5 × 12؟",
+   "options": [
+    "60",
+    "65",
+    "50",
+    "72"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-113",
+   "type": "truefalse",
+   "text": "42 + 35 = 77",
+   "correct": true
+  },
+  {
+   "id": "p-114",
+   "type": "mcq",
+   "text": "كم يساوي 26 − 11؟",
+   "options": [
+    "22",
+    "15",
+    "10",
+    "24"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-115",
+   "type": "mcq",
+   "text": "كم يساوي 6 × 3؟",
+   "options": [
+    "14",
+    "13",
+    "18",
+    "12"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-116",
+   "type": "truefalse",
+   "text": "47 + 37 = 83",
+   "correct": false
+  },
+  {
+   "id": "p-117",
+   "type": "mcq",
+   "text": "كم يساوي 31 − 25؟",
+   "options": [
+    "12",
+    "5",
+    "6",
+    "2"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-118",
+   "type": "mcq",
+   "text": "كم يساوي 11 × 6؟",
+   "options": [
+    "77",
+    "66",
+    "56",
+    "59"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-119",
+   "type": "truefalse",
+   "text": "56 + 26 = 82",
+   "correct": true
+  },
+  {
+   "id": "p-120",
+   "type": "mcq",
+   "text": "كم يساوي 34 − 30؟",
+   "options": [
+    "12",
+    "4",
+    "3",
+    "1"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-121",
+   "type": "mcq",
+   "text": "كم يساوي 9 × 9؟",
+   "options": [
+    "81",
+    "85",
+    "87",
+    "78"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-122",
+   "type": "truefalse",
+   "text": "33 + 27 = 60",
+   "correct": true
+  },
+  {
+   "id": "p-123",
+   "type": "mcq",
+   "text": "كم يساوي 36 − 12؟",
+   "options": [
+    "28",
+    "23",
+    "17",
+    "24"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-124",
+   "type": "mcq",
+   "text": "كم يساوي 9 × 6؟",
+   "options": [
+    "54",
+    "61",
+    "60",
+    "66"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-125",
+   "type": "truefalse",
+   "text": "18 + 56 = 74",
+   "correct": true
+  },
+  {
+   "id": "p-126",
+   "type": "mcq",
+   "text": "كم يساوي 40 − 37؟",
+   "options": [
+    "3",
+    "5",
+    "6",
+    "4"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-127",
+   "type": "mcq",
+   "text": "كم يساوي 4 × 2؟",
+   "options": [
+    "18",
+    "6",
+    "8",
+    "20"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-128",
+   "type": "truefalse",
+   "text": "50 + 37 = 87",
+   "correct": true
+  },
+  {
+   "id": "p-129",
+   "type": "mcq",
+   "text": "كم يساوي 57 − 13؟",
+   "options": [
+    "50",
+    "37",
+    "44",
+    "36"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-130",
+   "type": "mcq",
+   "text": "كم يساوي 10 × 11؟",
+   "options": [
+    "115",
+    "110",
+    "99",
+    "119"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-131",
+   "type": "truefalse",
+   "text": "40 + 54 = 94",
+   "correct": true
+  },
+  {
+   "id": "p-132",
+   "type": "mcq",
+   "text": "كم يساوي 42 − 26؟",
+   "options": [
+    "25",
+    "9",
+    "17",
+    "16"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-133",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 8؟",
+   "options": [
+    "100",
+    "91",
+    "96",
+    "88"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-134",
+   "type": "truefalse",
+   "text": "14 + 60 = 74",
+   "correct": true
+  },
+  {
+   "id": "p-135",
+   "type": "mcq",
+   "text": "كم يساوي 18 − 13؟",
+   "options": [
+    "5",
+    "13",
+    "7",
+    "10"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-136",
+   "type": "mcq",
+   "text": "كم يساوي 9 × 7؟",
+   "options": [
+    "63",
+    "62",
+    "71",
+    "74"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-137",
+   "type": "truefalse",
+   "text": "39 + 34 = 79",
+   "correct": false
+  },
+  {
+   "id": "p-138",
+   "type": "mcq",
+   "text": "كم يساوي 58 − 13؟",
+   "options": [
+    "37",
+    "45",
+    "36",
+    "42"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-139",
+   "type": "mcq",
+   "text": "كم يساوي 5 × 9؟",
+   "options": [
+    "45",
+    "40",
+    "39",
+    "44"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-140",
+   "type": "truefalse",
+   "text": "21 + 43 = 64",
+   "correct": true
+  },
+  {
+   "id": "p-141",
+   "type": "mcq",
+   "text": "كم يساوي 37 − 14؟",
+   "options": [
+    "25",
+    "23",
+    "18",
+    "20"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-142",
+   "type": "mcq",
+   "text": "كم يساوي 2 × 2؟",
+   "options": [
+    "1",
+    "10",
+    "4",
+    "12"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-143",
+   "type": "truefalse",
+   "text": "11 + 56 = 61",
+   "correct": false
+  },
+  {
+   "id": "p-144",
+   "type": "mcq",
+   "text": "كم يساوي 54 − 20؟",
+   "options": [
+    "37",
+    "34",
+    "26",
+    "40"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-145",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 11؟",
+   "options": [
+    "143",
+    "131",
+    "135",
+    "132"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-146",
+   "type": "truefalse",
+   "text": "13 + 52 = 65",
+   "correct": true
+  },
+  {
+   "id": "p-147",
+   "type": "mcq",
+   "text": "كم يساوي 34 − 29؟",
+   "options": [
+    "1",
+    "13",
+    "7",
+    "5"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-148",
+   "type": "mcq",
+   "text": "كم يساوي 2 × 9؟",
+   "options": [
+    "18",
+    "16",
+    "20",
+    "23"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-149",
+   "type": "truefalse",
+   "text": "50 + 36 = 86",
+   "correct": true
+  },
+  {
+   "id": "p-150",
+   "type": "mcq",
+   "text": "كم يساوي 36 − 22؟",
+   "options": [
+    "14",
+    "13",
+    "9",
+    "11"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-151",
+   "type": "mcq",
+   "text": "كم يساوي 2 × 6؟",
+   "options": [
+    "12",
+    "24",
+    "17",
+    "8"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-152",
+   "type": "truefalse",
+   "text": "42 + 14 = 48",
+   "correct": false
+  },
+  {
+   "id": "p-153",
+   "type": "mcq",
+   "text": "كم يساوي 60 − 19؟",
+   "options": [
+    "49",
+    "41",
+    "39",
+    "42"
+   ],
+   "correct": 2
+  },
+  {
+   "id": "p-154",
+   "type": "mcq",
+   "text": "كم يساوي 2 × 5؟",
+   "options": [
+    "1",
+    "16",
+    "10",
+    "20"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-155",
+   "type": "truefalse",
+   "text": "22 + 35 = 57",
+   "correct": true
+  },
+  {
+   "id": "p-156",
+   "type": "mcq",
+   "text": "كم يساوي 54 − 53؟",
+   "options": [
+    "10",
+    "7",
+    "1",
+    "3"
+   ],
+   "correct": 3
+  },
+  {
+   "id": "p-157",
+   "type": "mcq",
+   "text": "كم يساوي 12 × 3؟",
+   "options": [
+    "36",
+    "33",
+    "28",
+    "31"
+   ],
+   "correct": 1
+  },
+  {
+   "id": "p-158",
+   "type": "truefalse",
+   "text": "11 + 31 = 42",
+   "correct": true
+  },
+  {
+   "id": "p-159",
+   "type": "mcq",
+   "text": "كم يساوي 56 − 45؟",
+   "options": [
+    "20",
+    "18",
+    "16",
+    "11"
+   ],
+   "correct": 4
+  },
+  {
+   "id": "p-160",
+   "type": "mcq",
+   "text": "كم يساوي 8 × 3؟",
+   "options": [
+    "24",
+    "20",
+    "17",
+    "27"
+   ],
+   "correct": 1
+  }
+ ]
+}

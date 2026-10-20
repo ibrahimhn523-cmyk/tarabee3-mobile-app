@@ -11,4 +11,6 @@ protocol ProfileBackend: AnyObject {
     func stopObserving()
     func save(name: String, persona: Persona) async throws(ProfileError) -> Player
     func deleteAccount() async throws(ProfileError)
+    /// يجدّد حزمة التدريب من الخادم إن تغيّرت (R-45). الفشل صامت.
+    func refreshTrainingPack() async
 }
