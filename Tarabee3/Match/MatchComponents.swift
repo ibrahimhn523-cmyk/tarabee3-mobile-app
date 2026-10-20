@@ -47,8 +47,7 @@ struct BoardView: View {
             }
         }
         .aspectRatio(1, contentMode: .fit)
-        .padding(gap)
-        .background(Palette.of(scheme).surface, in: RoundedRectangle(cornerRadius: Radius.card))
+        // بلا خلفية: المربع الفارغ في الداكن بلون surface نفسه (mode.dark-cell-empty)، فخلفية surface تخفيه
         .environment(\.layoutDirection, .leftToRight)
     }
 
@@ -119,8 +118,13 @@ struct SeatBadge: View {
         }
         .padding(Space.s(1))
         .frame(maxWidth: .infinity)
-        .background(active ? palette.surfaceRaised : .clear, in: RoundedRectangle(cornerRadius: Radius.control))
+        // صاحب الدور بإطار لا بتعبئة: وسم «آلي» بلون surface-raised يبقى ظاهراً
+        .background(active ? palette.surface : .clear, in: RoundedRectangle(cornerRadius: Radius.control))
+        .overlay {
+            if active { RoundedRectangle(cornerRadius: Radius.control).strokeBorder(palette.text, lineWidth: 1.5) }
+        }
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 }
 
