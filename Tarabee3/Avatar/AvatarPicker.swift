@@ -17,7 +17,7 @@ struct AvatarPicker: View {
                 .frame(maxWidth: .infinity)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.s(1)), count: 4), spacing: Space.s(1)) {
-                ForEach(Expression.allCases, id: \.self) { expression in
+                ForEach(FaceExpression.allCases, id: \.self) { expression in
                     choice(selected: persona.expression == expression, label: expression.rawValue, palette: palette) {
                         persona.expression = expression
                     } content: {

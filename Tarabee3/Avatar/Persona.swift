@@ -3,7 +3,7 @@ import Foundation
 // الشخصية «المربع الحيّ» (R-03، القرار 0016): تعبير وثلاث خانات تلبيس. القيم الخام هي ما يحفظه الخادم (03-schema).
 // التعابير مرتّبة كترتيب المنتقي، ومنقولة من مشروع الويب بقرار المالك — تقرير M-02.
 
-enum Expression: String, CaseIterable, Sendable, Codable {
+enum FaceExpression: String, CaseIterable, Sendable, Codable {
     case smile = "مبتسم"
     case wink = "غامز"
     case angry = "غاضب"
@@ -37,7 +37,7 @@ enum NeckOutfit: String, CaseIterable, Sendable, Codable {
 }
 
 struct Persona: Equatable, Hashable, Sendable {
-    var expression: Expression
+    var expression: FaceExpression
     var head: HeadOutfit
     var eye: EyeOutfit
     var neck: NeckOutfit

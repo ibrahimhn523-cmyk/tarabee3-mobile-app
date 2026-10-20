@@ -71,13 +71,13 @@ final class SnapshotTests: XCTestCase {
 
     /// كل التعابير، وكل التلبيسات، والمقاعد الخمسة، والمبسّط تحت ٢٤، والشماغ المبسّط تحت ٤٠.
     func testAvatarSheet() throws {
-        func plain(_ expression: Expression) -> Persona { Persona(expression: expression, head: .none, eye: .none, neck: .none) }
+        func plain(_ expression: FaceExpression) -> Persona { Persona(expression: expression, head: .none, eye: .none, neck: .none) }
         let sheet = VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                ForEach(Array(Expression.allCases.prefix(6)), id: \.self) { AvatarView(team: .team1, persona: plain($0), side: 80) }
+                ForEach(Array(FaceExpression.allCases.prefix(6)), id: \.self) { AvatarView(team: .team1, persona: plain($0), side: 80) }
             }
             HStack(spacing: 8) {
-                ForEach(Array(Expression.allCases.suffix(6)), id: \.self) { AvatarView(team: .team1, persona: plain($0), side: 80) }
+                ForEach(Array(FaceExpression.allCases.suffix(6)), id: \.self) { AvatarView(team: .team1, persona: plain($0), side: 80) }
             }
             HStack(spacing: 8) {
                 ForEach(HeadOutfit.allCases, id: \.self) {

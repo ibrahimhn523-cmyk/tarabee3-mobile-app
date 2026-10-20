@@ -23,7 +23,7 @@ final class NameRuleTests: XCTestCase {
 final class PersonaTests: XCTestCase {
     /// القيم كما يقبلها الخادم (server/src/persona.ts) — تغيّرها في جانب وحده يكسر الحفظ.
     func testRawValuesMatchServer() {
-        XCTAssertEqual(Expression.allCases.map(\.rawValue), [
+        XCTAssertEqual(FaceExpression.allCases.map(\.rawValue), [
             "مبتسم", "غامز", "غاضب", "مندهش", "نعسان", "مُخرج لسانه",
             "عيون نجوم", "واثق", "ضاحك", "متحمّس", "خجول", "مفكّر",
         ])
@@ -56,7 +56,7 @@ final class AvatarArtTests: XCTestCase {
     }
 
     func testEveryExpressionDrawsAFace() {
-        for expression in Expression.allCases {
+        for expression in FaceExpression.allCases {
             let persona = Persona(expression: expression, head: .none, eye: .none, neck: .none)
             let drawing = drawAvatar(team: .team1, persona: persona, side: 120)
             XCTAssertEqual(drawing.shapes.first?.part, "body", "\(expression)")

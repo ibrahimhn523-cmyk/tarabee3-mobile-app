@@ -189,7 +189,7 @@ private struct Face {
 }
 
 /// وجه التعبير؛ وsad «حزن الخطأ» ليس تعبيراً يُختار.
-private func face(_ expression: Expression?, outline: Bool) -> Face {
+private func face(_ expression: FaceExpression?, outline: Bool) -> Face {
     let open: (Look) -> (Eye) -> [AvatarShape] = { look in { openEye($0, outline: outline, look) } }
     switch expression {
     case .smile:

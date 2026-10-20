@@ -14,7 +14,7 @@ struct Player: Equatable, Sendable {
         self.id = id
         name = fields["name"] as? String ?? ""
         persona = Persona(
-            expression: (fields["expression"] as? String).flatMap(Expression.init(rawValue:)) ?? .smile,
+            expression: (fields["expression"] as? String).flatMap(FaceExpression.init(rawValue:)) ?? .smile,
             head: (fields["accessoryHead"] as? String).flatMap(HeadOutfit.init(rawValue:)) ?? .none,
             eye: (fields["accessoryEye"] as? String).flatMap(EyeOutfit.init(rawValue:)) ?? .none,
             neck: (fields["accessoryNeck"] as? String).flatMap(NeckOutfit.init(rawValue:)) ?? .none
