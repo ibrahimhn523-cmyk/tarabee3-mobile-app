@@ -259,8 +259,11 @@ final class MatchSnapshotTests: XCTestCase {
     /// شاشات M-05: الجماعية، والصندوق، ويد الكروت، والاستهداف، وكرت اللوح، ونافذة الحرق.
     /// الكرت من الصندوق بالقرعة، فتُجرَّب بذور حتى تظهر كلها؛ والناقص يُسجَّل في السجلّ لا يُسكت.
     func testCardAndGroupScreens() async throws {
+        // بذور كثيرة: الحدّ الأعلى في سير العمل دقيقتان
+        executionTimeAllowance = 120
+        // «فلان يقرّر الحرق» لا تظهر في التدريب: الآليون بلا كروت، فلا نافذة إلا لي
         let wanted: Set = ["S-12-group", "S-12-group-answered", "S-11-choice", "M-box-opened", "M-cards-sheet",
-                           "S-09-cards", "M-targeting", "S-11-board-card", "S-13-burn", "M-burn-waiting"]
+                           "S-09-cards", "M-targeting", "S-11-board-card", "S-13-burn"]
         for seed in 1...40 where !shots.isSuperset(of: wanted) {
             let clock = TestClock()
             let s = TrainingSession(setup: .init(size: 3, boardSize: 9), player: player, clock: { clock.now })
@@ -273,8 +276,6 @@ final class MatchSnapshotTests: XCTestCase {
                 if s.myBurnWindow != nil {
                     try await shot(screen, "S-13-burn")
                     s.decideBurn(true)
-                } else if s.phase == "burn" {
-                    try await shot(screen, "M-burn-waiting")
                 } else if s.canAnswerGroup {
                     try await shot(screen, "S-12-group")
                     s.answer(AutoPlay.firstChoice(round.question))
