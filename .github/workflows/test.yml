@@ -45,14 +45,30 @@ jobs:
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl list devices available | grep "$UDID"
 
-      - name: Test (unit + snapshots)
+      - name: Build for testing
         timeout-minutes: 30
+        run: |
+          xcodebuild build-for-testing -quiet \
+            -project Tarabee3.xcodeproj -scheme Tarabee3 \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Boot simulator
+        timeout-minutes: 10
+        run: |
+          xcrun simctl boot "$SIM_UDID" || true
+          xcrun simctl bootstatus "$SIM_UDID" -b
+
+      - name: Test (unit + snapshots)
+        timeout-minutes: 20
         env:
           TEST_RUNNER_SNAPSHOT_DIR: ${{ runner.temp }}/snapshots
         run: |
-          xcodebuild test -quiet \
+          xcodebuild test-without-building \
             -project Tarabee3.xcodeproj -scheme Tarabee3 \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
             -resultBundlePath "$RUNNER_TEMP/Tests.xcresult" \
             -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 60 \
