@@ -61,6 +61,18 @@ final class EngineBridge {
         try call("choose", [state, seatNo, square.row, square.col, now])
     }
 
+    /// مربعات الصليب من المحرّك نفسه، للمعاينة قبل الحكم (R-23)؛ لا قاعدة لعب في سويفت (القاعدة ٥).
+    func crossCells(boardSize: Int, center: Square) -> [Square] {
+        guard let text = bridge.invokeMethod("crossCells", withArguments: [boardSize, center.row, center.col])?.toString(),
+              let data = text.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([Square].self, from: data)) ?? []
+    }
+
+    /// اللوح المقترح بالحجم، من المحرّك (R-08).
+    func suggestedBoard(size: Int) -> Int {
+        Int(bridge.invokeMethod("suggestedBoard", withArguments: [size])?.toInt32() ?? 9)
+    }
+
     private func call(_ name: String, _ args: [Any]) throws -> Output {
         var failure: String?
         context.exceptionHandler = { _, value in failure = value?.toString() }

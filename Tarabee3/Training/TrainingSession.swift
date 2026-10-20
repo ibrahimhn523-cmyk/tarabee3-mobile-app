@@ -15,7 +15,10 @@ final class TrainingSession {
     static let mySeat = 1
 
     private(set) var view: MatchView?
+    /// المحرّك رمى خطأً أو لم يُحمَّل: تظهر رسالة بدل شاشة متجمّدة (مراجعة M-04، المشكلة ٥).
     private(set) var failed = false
+    /// مربعات المعاينة من المحرّك نفسه.
+    private(set) var previewCells: Set<Square> = []
     /// المربع المعاين قبل الاعتماد، على هذا الجهاز وحده (R-23).
     var preview: Square?
     /// ما أرسله اللاعب في الدور الجاري، يثبت حتى يردّ المحرّك.
@@ -38,6 +41,11 @@ final class TrainingSession {
 
     var now: Double { clock() }
 
+    /// اللوح المقترح بالحجم، من المحرّك (لشاشة الإعداد).
+    static func suggestedBoard(size: Int) -> Int {
+        (try? EngineBridge())?.suggestedBoard(size: size) ?? 9
+    }
+
     /// ينشئ المباراة ويبدأ «استعدّ ٣-٢-١». seed للاختبار؛ وإلا عشوائية.
     func start(seed: Int = Int.random(in: 1...Int(Int32.max)), runLoop: Bool = true) {
         guard let bridge, let pack = TrainingPack.current() else { failed = true; return }
@@ -46,13 +54,8 @@ final class TrainingSession {
         "player":{"displayName":\(jsonString(player.name)),"persona":\(personaJSON(player.persona))},\
         "questions":\(pack.questionsJSON)}
         """
-        do {
-            apply(try bridge.createTraining(setupJSON: setupJSON, now: now))
-        } catch {
-            failed = true
-            return
-        }
-        if runLoop { startLoop() }
+        run { try bridge.createTraining(setupJSON: setupJSON, now: now) }
+        if runLoop && !failed { startLoop() }
     }
 
     func stop() {
@@ -74,8 +77,18 @@ final class TrainingSession {
 
     /// يقدّم المحرّك إلى لحظة بعينها (النبض، أو الاختبار).
     func advance(to time: Double) {
-        guard let bridge, let state else { return }
-        if let out = try? bridge.tick(state: state, now: time) { apply(out) }
+        guard let bridge, let state, !failed else { return }
+        run { try bridge.tick(state: state, now: time) }
+    }
+
+    /// كل استدعاء للمحرّك: الخطأ يوقف الجلسة برسالة، لا يُبتلع.
+    private func run(_ body: () throws -> EngineBridge.Output) {
+        do {
+            apply(try body())
+        } catch {
+            failed = true
+            stop()
+        }
     }
 
     // MARK: - أفعال اللاعب
@@ -86,19 +99,20 @@ final class TrainingSession {
         guard let bridge, let state, isMyTurn, view?.phase.kind == "answering", sentAnswer == nil else { return }
         sentAnswer = choice
         Haptics.play(Tokens.Haptics.send)
-        if let out = try? bridge.answer(state: state, seatNo: Self.mySeat, choice: choice, now: now) { apply(out) }
+        run { try bridge.answer(state: state, seatNo: Self.mySeat, choice: choice, now: now) }
     }
 
     /// الضغطة الأولى تعاين، والاعتماد زرّ مستقل (05-ui §١٦).
     func select(_ square: Square) {
-        guard isMyTurn, view?.phase.kind == "choosing", let view, view.owner(square.row, square.col) == 0 else { return }
+        guard isMyTurn, view?.phase.kind == "choosing", let view, view.owner(square.row, square.col) == 0, let bridge else { return }
         preview = square
+        previewCells = Set(bridge.crossCells(boardSize: view.boardSize, center: square))
     }
 
     func commit() {
         guard let bridge, let state, let preview, isMyTurn, view?.phase.kind == "choosing" else { return }
         Haptics.play(Tokens.Haptics.commit)
-        if let out = try? bridge.choose(state: state, seatNo: Self.mySeat, square: preview, now: now) { apply(out) }
+        run { try bridge.choose(state: state, seatNo: Self.mySeat, square: preview, now: now) }
     }
 
     // MARK: - داخلي
@@ -109,10 +123,12 @@ final class TrainingSession {
         view = out.view
         if out.view.round?.id != previousRound {
             sentAnswer = nil
-            preview = nil
             warnedLastFive = false
         }
-        if out.view.phase.kind != "choosing" { preview = nil }
+        if out.view.round?.id != previousRound || out.view.phase.kind != "choosing" {
+            preview = nil
+            previewCells = []
+        }
         for event in out.events where event.type == "turnStarted" && event.seatNo == Self.mySeat {
             Haptics.play(Tokens.Haptics.yourTurn)
         }

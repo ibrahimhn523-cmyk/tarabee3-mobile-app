@@ -54,6 +54,35 @@ final class TrainingTests: XCTestCase {
         }
     }
 
+    /// قواعد العرض من المحرّك لا مكرّرة في سويفت (مراجعة M-04، المشكلة ٤).
+    func testRulesComeFromTheEngine() throws {
+        let bridge = try EngineBridge()
+        XCTAssertEqual(bridge.crossCells(boardSize: 9, center: Square(row: 0, col: 0)).count, 3)
+        XCTAssertEqual(bridge.crossCells(boardSize: 9, center: Square(row: 4, col: 4)).count, 5)
+        XCTAssertEqual([3, 4, 5].map { bridge.suggestedBoard(size: $0) }, [9, 10, 11])
+    }
+
+    /// السؤال المعطوب في الحزمة يُستبعد ولا يجمّد التدريب (مراجعة M-04، المشكلة ٥).
+    func testPackRejectsBrokenQuestions() {
+        let good: [String: Any] = ["id": "a", "type": "mcq", "text": "س", "options": ["1", "2", "3", "4"], "correct": 2]
+        XCTAssertTrue(TrainingPack.isValid(good))
+        XCTAssertTrue(TrainingPack.isValid(["id": "b", "type": "truefalse", "text": "س", "correct": true]))
+        var broken = good; broken["correct"] = 5
+        XCTAssertFalse(TrainingPack.isValid(broken))
+        broken = good; broken["correct"] = 0
+        XCTAssertFalse(TrainingPack.isValid(broken))
+        broken = good; broken["correct"] = true
+        XCTAssertFalse(TrainingPack.isValid(broken))
+        broken = good; broken["options"] = ["1", "1", "3", "4"]
+        XCTAssertFalse(TrainingPack.isValid(broken))
+        broken = good; broken["text"] = "  "
+        XCTAssertFalse(TrainingPack.isValid(broken))
+        XCTAssertFalse(TrainingPack.isValid(["id": "c", "type": "truefalse", "text": "س", "correct": 1]))
+        // حزمة بأسئلة معطوبة كثيرة لا تكفي فتُرفض كلها، فيبقى التدريب على ما عنده
+        let pack: [String: Any] = ["version": "x", "questions": Array(repeating: broken, count: 100)]
+        XCTAssertNil(TrainingPack.parse(try! JSONSerialization.data(withJSONObject: pack)))
+    }
+
     func testPreviewOnlyOnEmptySquareAndOnlyWhenChoosing() throws {
         let clock = TestClock()
         let session = TrainingSession(setup: .init(size: 3, boardSize: 9), player: player, clock: { clock.now })

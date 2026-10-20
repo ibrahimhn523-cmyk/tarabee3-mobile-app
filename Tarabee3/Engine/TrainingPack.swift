@@ -23,10 +23,30 @@ enum TrainingPack {
         Bundle.main.url(forResource: "training-pack", withExtension: "json").flatMap { try? Data(contentsOf: $0) }
     }
 
-    private static func parse(_ data: Data) -> (version: String, questionsJSON: String)? {
+    /// كل سؤال يُفحص بشكله: المعطوب يُستبعد، فلا يجمّد التدريب (مراجعة M-04، المشكلة ٥).
+    static func isValid(_ q: [String: Any]) -> Bool {
+        guard let id = q["id"] as? String, !id.isEmpty,
+              let text = q["text"] as? String, !text.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        switch q["type"] as? String {
+        case "truefalse":
+            return q["correct"] is Bool
+        case "mcq":
+            guard let options = q["options"] as? [String], options.count == 4, Set(options).count == 4,
+                  !options.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }),
+                  let number = q["correct"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                  (1...4).contains(number.intValue), Double(number.intValue) == number.doubleValue else { return false }
+            return true
+        default:
+            return false
+        }
+    }
+
+    static func parse(_ data: Data) -> (version: String, questionsJSON: String)? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let version = object["version"] as? String,
-              let questions = object["questions"] as? [Any], questions.count >= minimumQuestions,
+              let raw = object["questions"] as? [[String: Any]] else { return nil }
+        let questions = raw.filter(isValid)
+        guard questions.count >= minimumQuestions,
               let json = try? JSONSerialization.data(withJSONObject: questions),
               let text = String(data: json, encoding: .utf8) else { return nil }
         return (version, text)

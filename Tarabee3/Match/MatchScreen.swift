@@ -63,7 +63,7 @@ struct MatchScreen: View {
             } else if kind == "answering" && mine, let round = view.round {
                 // S-09 · دورك
                 statusLine(Copy.Match.yourTurn, palette)
-                TimerView(deadline: round.deadline, total: MatchRules.answerMs, now: now)
+                TimerView(deadline: round.deadline, total: view.times.answer, now: now)
                 ScrollView {
                     VStack(spacing: Space.s(3)) {
                         QuestionCard(question: round.question)
@@ -74,8 +74,9 @@ struct MatchScreen: View {
             } else if kind == "choosing" && mine, let deadline = view.phase.deadline {
                 // S-11 · اختيار المربع
                 statusLine(Copy.Match.chooseSquare, palette)
-                TimerView(deadline: deadline, total: MatchRules.chooseMs, now: now)
-                BoardView(view: view, preview: session.preview, previewSeat: TrainingSession.mySeat) { session.select($0) }
+                TimerView(deadline: deadline, total: view.times.choose, now: now)
+                BoardView(view: view, preview: session.preview, previewCells: session.previewCells,
+                          previewSeat: TrainingSession.mySeat) { session.select($0) }
                 Spacer(minLength: 0)
                 Button(Copy.Match.commit) { session.commit() }
                     .appButton(.primary)
@@ -84,7 +85,7 @@ struct MatchScreen: View {
                 // S-10 · دور غيرك، وعرض اللوح بعد كل دور
                 statusLine(otherStatus(view), palette)
                 if kind != "display", let deadline = view.phase.deadline {
-                    TimerView(deadline: deadline, total: kind == "choosing" ? MatchRules.chooseMs : MatchRules.answerMs, now: now)
+                    TimerView(deadline: deadline, total: kind == "choosing" ? view.times.choose : view.times.answer, now: now)
                 }
                 SplitPicker(options: [(Tab.board, Copy.Match.boardTab), (Tab.question, Copy.Match.questionTab)], selection: $tab)
                 if tab == .board || kind == "display" {
@@ -137,12 +138,6 @@ struct MatchScreen: View {
         }
         return view.phase.kind == "choosing" ? Copy.Match.choosing(name) : Copy.Match.turnOf(name)
     }
-}
-
-/// مهلتا الإجابة والاختيار (R-19) — للعرض وحده؛ الحاكم المحرّك (types.ts: TIMES).
-enum MatchRules {
-    static let answerMs: Double = 15_000
-    static let chooseMs: Double = 20_000
 }
 
 /// «استعدّ ٣-٢-١» (05-ui §٦): بمقاس ثابت لا يكبر بإعداد الخط، ويسكن حجمه عند تقليل الحركة.

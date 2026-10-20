@@ -182,11 +182,18 @@ var Tarabee3Engine = (() => {
     if (!q) throw new Error(`question not in pool: ${id}`);
     return q;
   }
+  var validTime = (t) => typeof t === "number" && Number.isFinite(t);
+  function checkConfig(config, now) {
+    if (![3, 4, 5].includes(config.size)) throw new Error("size must be 3, 4 or 5");
+    if (![9, 10, 11].includes(config.boardSize)) throw new Error("boardSize must be 9, 10 or 11");
+    const seatNos = config.seats.map((s) => s.seatNo).sort((a, b) => a - b);
+    const expected = Array.from({ length: config.size }, (_, i) => i + 1);
+    if (seatNos.join() !== expected.join()) throw new Error("seats must be numbered 1..size, once each");
+    if (!validTime(now) || !Number.isFinite(config.seed)) throw new Error("now and seed must be finite numbers");
+  }
   function createMatch(config, now) {
+    checkConfig(config, now);
     const seatNos = config.seats.map((s) => s.seatNo);
-    if (config.seats.length !== config.size || new Set(seatNos).size !== config.size) {
-      throw new Error("seats must match size with unique seat numbers");
-    }
     const times = config.times ?? TIMES;
     const state = {
       v: 1,
@@ -205,7 +212,8 @@ var Tarabee3Engine = (() => {
       used: [],
       rng: config.seed | 0,
       phase: { kind: "countdown", until: now + times.countdown },
-      startedAt: now
+      startedAt: now,
+      lastAt: now
     };
     state.firstOrder = shuffle(state, seatNos);
     return { state, events: [] };
@@ -291,6 +299,8 @@ var Tarabee3Engine = (() => {
   function tick(input, now) {
     const state = clone(input);
     const events = [];
+    if (!validTime(now) || now < state.lastAt) return { state, events };
+    state.lastAt = now;
     for (let guard = 0; guard < 1e4; guard++) {
       const p = state.phase;
       if (p.kind === "ended") break;
@@ -330,6 +340,7 @@ var Tarabee3Engine = (() => {
     return { state, events };
   }
   function answer(input, seatNo, choice, at) {
+    if (!validTime(at) || at < input.lastAt) return { state: clone(input), events: [], rejected: "bad_time" };
     const { state, events } = tick(input, at);
     const round = currentRound(state);
     if (state.phase.kind !== "answering" || !round) {
@@ -345,6 +356,7 @@ var Tarabee3Engine = (() => {
     return { state, events };
   }
   function choose(input, seatNo, row, col, at) {
+    if (!validTime(at) || at < input.lastAt) return { state: clone(input), events: [], rejected: "bad_time" };
     const { state, events } = tick(input, at);
     const round = currentRound(state);
     if (state.phase.kind !== "choosing" || !round) return { state, events, rejected: "not_now" };
@@ -409,6 +421,7 @@ var Tarabee3Engine = (() => {
       boardSize: state.boardSize,
       cycle: state.cycle,
       cyclesTotal: state.cyclesTotal,
+      times: { ...state.times },
       board: [...state.board],
       seats: state.seats.map((s) => ({ ...s, persona: { ...s.persona }, squares: squaresOf(state.board, s.seatNo) })),
       order: orderOf(state, Math.min(state.cycle, state.cyclesTotal)),
@@ -424,7 +437,10 @@ var Tarabee3Engine = (() => {
     createTraining: (setupJson, now) => out(createTraining(JSON.parse(setupJson), now)),
     tick: (stateJson, now) => out(tick(JSON.parse(stateJson), now)),
     answer: (stateJson, seatNo, choiceJson, now) => out(answer(JSON.parse(stateJson), seatNo, JSON.parse(choiceJson), now)),
-    choose: (stateJson, seatNo, row, col, now) => out(choose(JSON.parse(stateJson), seatNo, row, col, now))
+    choose: (stateJson, seatNo, row, col, now) => out(choose(JSON.parse(stateJson), seatNo, row, col, now)),
+    // قواعد يحتاجها العرض قبل الحكم، من المحرّك نفسه لا مكرّرة في سويفت (مراجعة M-04، المشكلة ٤)
+    crossCells: (boardSize, row, col) => JSON.stringify(crossCells(boardSize, row, col)),
+    suggestedBoard: (size) => suggestedBoard(size)
   };
   return __toCommonJS(index_exports);
 })();

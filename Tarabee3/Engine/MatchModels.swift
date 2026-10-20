@@ -103,11 +103,20 @@ struct RankRow: Codable, Equatable, Sendable {
     var rank: Int
 }
 
+/** المهل كما يحكم بها المحرّك (بالمللي ثانية). */
+struct MatchTimes: Codable, Equatable, Sendable {
+    var answer: Double
+    var choose: Double
+    var display: Double
+    var countdown: Double
+}
+
 struct MatchView: Codable, Equatable, Sendable {
     var size: Int
     var boardSize: Int
     var cycle: Int
     var cyclesTotal: Int
+    var times: MatchTimes
     var board: [Int]
     var seats: [SeatView]
     var order: [Int]
@@ -117,11 +126,4 @@ struct MatchView: Codable, Equatable, Sendable {
 
     func seat(_ no: Int) -> SeatView? { seats.first { $0.seatNo == no } }
     func owner(_ row: Int, _ col: Int) -> Int { board[row * boardSize + col] }
-}
-
-/** المربعات التي يلوّنها صليب مركزه، كما في المحرّك (board.ts: crossCells). للمعاينة على جهاز صاحبه وحده (R-23). */
-func crossCells(boardSize: Int, center: Square) -> [Square] {
-    [center, Square(row: center.row - 1, col: center.col), Square(row: center.row + 1, col: center.col),
-     Square(row: center.row, col: center.col - 1), Square(row: center.row, col: center.col + 1)]
-        .filter { $0.row >= 0 && $0.row < boardSize && $0.col >= 0 && $0.col < boardSize }
 }

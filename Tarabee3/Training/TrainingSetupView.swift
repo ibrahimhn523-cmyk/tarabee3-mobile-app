@@ -55,8 +55,8 @@ struct TrainingSetupView: View {
         }
     }
 
-    /// اللوح المقترح: ٩ للثلاثية، و١٠ للرباعية، و١١ للخماسية.
-    private func suggested(_ size: Int) -> Int { [3: 9, 4: 10, 5: 11][size] ?? 9 }
+    /// اللوح المقترح بالحجم، من المحرّك.
+    private func suggested(_ size: Int) -> Int { TrainingSession.suggestedBoard(size: size) }
 
     private func begin() {
         let s = TrainingSession(setup: .init(size: size, boardSize: boardSize), player: player)

@@ -14,6 +14,8 @@ enum BoardMetrics {
 struct BoardView: View {
     let view: MatchView
     var preview: Square? = nil
+    /// مربعات الصليب المعاين، من المحرّك (TrainingSession.previewCells).
+    var previewCells: Set<Square> = []
     var previewSeat: Int? = nil
     var small = false
     var onTap: ((Square) -> Void)? = nil
@@ -22,8 +24,7 @@ struct BoardView: View {
     var body: some View {
         let n = view.boardSize
         let gap = small ? BoardMetrics.gapSmall : BoardMetrics.gap
-        let previewCells = preview.map { Set(crossCells(boardSize: n, center: $0)) } ?? []
-        // اللوح لا يُعكس في واجهة من اليمين: الصفّ الأول والعمود الأول كما في المحرّك على كل الأجهزة
+        // اللوح من اليمين كالواجهة كلها (القاعدة ٨): العمود الأول يمين. وكل الأجهزة من اليمين، فاللوح واحد عند الجميع
         GeometryReader { geo in
             let side = (geo.size.width - gap * CGFloat(n - 1)) / CGFloat(n)
             VStack(spacing: gap) {
@@ -48,7 +49,6 @@ struct BoardView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         // بلا خلفية: المربع الفارغ في الداكن بلون surface نفسه (mode.dark-cell-empty)، فخلفية surface تخفيه
-        .environment(\.layoutDirection, .leftToRight)
     }
 
     /// قارئ الشاشة: صفّه وعموده ومالكه (05-ui §١١).
@@ -92,6 +92,8 @@ struct CellView: View {
         }
         .frame(width: side, height: side)
         .shadow(color: scheme == .light && owner != 0 ? .black.opacity(0.10) : .clear, radius: 1.5, y: 1)
+        // رسم المربع لا يُعكس: الفاتح واللمعة أعلى اليمين كالأفاتار
+        .environment(\.layoutDirection, .leftToRight)
     }
 }
 
