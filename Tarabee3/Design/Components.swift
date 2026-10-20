@@ -151,6 +151,31 @@ struct SplitPicker<Value: Hashable>: View {
     }
 }
 
+// MARK: - صفّ الإعدادات
+
+/// بند في S-03 (05-ui §٦): عنوان وقيمته وسهم. السهم يشير لليسار: «التقدّم» في واجهة من اليمين.
+struct SettingsRow<Value: View>: View {
+    let title: String
+    let palette: Palette
+    @ViewBuilder let value: () -> Value
+
+    var body: some View {
+        HStack(spacing: Space.s(2)) {
+            VStack(alignment: .leading, spacing: Space.s(1)) {
+                Text(title).font(.app(.small, .medium)).foregroundStyle(palette.textMuted)
+                value()
+            }
+            Spacer()
+            Image("icon-chevron-left").resizable().frame(width: IconSize.small, height: IconSize.small)
+                .foregroundStyle(palette.textMuted).accessibilityHidden(true)
+        }
+        .padding(Space.s(3))
+        .frame(minHeight: Touch.min)
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: Radius.card))
+        .contentShape(Rectangle())
+    }
+}
+
 // MARK: - الخلفية
 
 struct AppBackground: ViewModifier {

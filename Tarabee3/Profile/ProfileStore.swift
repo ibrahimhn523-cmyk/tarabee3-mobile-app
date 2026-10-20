@@ -35,6 +35,10 @@ final class ProfileStore {
                 guard let self, !self.deleting else { return }
                 self.player = player
                 self.phase = player == nil ? .firstOpen : .ready
+            } onError: { [weak self] in
+                // ملف معروض يبقى؛ وإن لم يُعرض شيء بعد فالخطأ مع زرّ إعادة.
+                guard let self, self.player == nil else { return }
+                self.phase = .failed
             }
         } catch {
             phase = .failed

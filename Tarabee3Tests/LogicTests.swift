@@ -138,6 +138,17 @@ final class ProfileStoreTests: XCTestCase {
         XCTAssertEqual(store.phase, .firstOpen)
     }
 
+    func testReadErrorShowsFailedThenRetryRecovers() async {
+        let backend = FakeBackend()
+        backend.failReads = true
+        let store = ProfileStore(backend: backend)
+        await store.start()
+        XCTAssertEqual(store.phase, .failed)
+        backend.failReads = false
+        await store.start()
+        XCTAssertEqual(store.phase, .firstOpen)
+    }
+
     func testNoBackendMeansNotConfigured() async {
         let store = ProfileStore(backend: nil)
         await store.start()

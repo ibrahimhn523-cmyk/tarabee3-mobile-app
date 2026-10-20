@@ -34,7 +34,7 @@ struct RootView: View {
         case .notConfigured:
             MessageView(text: Copy.Status.notConfigured)
         case .failed:
-            MessageView(text: Copy.Status.noInternet)
+            MessageView(text: Copy.Status.noInternet) { Task { await store.start() } }
         }
     }
 }
@@ -54,11 +54,15 @@ private struct LoadingView: View {
 
 private struct MessageView: View {
     let text: String
+    var retry: (() -> Void)?
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         VStack(spacing: Space.s(4)) {
             Image("Logo-vertical").resizable().scaledToFit().frame(height: 120).accessibilityLabel("ترابيع")
             StatusBanner(kind: .error, text: text)
+            if let retry {
+                Button(Copy.Status.retry, action: retry).appButton(.primary)
+            }
             Text(verbatim: BuildInfo.text).font(.app(.caption)).foregroundStyle(Palette.of(scheme).textMuted)
         }
         .padding(Space.s(3))

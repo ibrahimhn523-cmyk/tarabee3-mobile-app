@@ -15,9 +15,11 @@ final class FakeBackend: ProfileBackend {
 
     func signIn() async throws -> String { uid }
 
-    func observePlayer(id: String, onChange: @escaping @MainActor (Player?) -> Void) {
+    var failReads = false
+
+    func observePlayer(id: String, onChange: @escaping @MainActor (Player?) -> Void, onError: @escaping @MainActor () -> Void) {
         self.onChange = onChange
-        onChange(player)
+        if failReads { onError() } else { onChange(player) }
     }
 
     func stopObserving() { onChange = nil }

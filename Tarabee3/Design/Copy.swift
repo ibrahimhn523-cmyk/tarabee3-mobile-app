@@ -19,6 +19,7 @@ enum Copy {
 
     enum Settings {
         static let title = "الملف والإعدادات"
+        static let profile = "اسمك وشخصيتك"
         static let save = "احفظ"
         static let saved = "حُفظ ملفك."
         static let appearance = "المظهر"
@@ -47,5 +48,6 @@ enum Copy {
         static let deleteFailed = "تعذّر حذف الحساب. أعد المحاولة."
         static let notConfigured = "التطبيق غير مهيّأ بعد. انتظر تحديثاً قريباً."
         static let loading = "نجهّز ملفك…"
+        static let retry = "أعد المحاولة"
     }
 }

@@ -67,8 +67,10 @@ final class SnapshotTests: XCTestCase {
                             persona: Persona(expression: .wink, head: .cap, eye: .glasses, neck: .shawl))
         let store = ProfileStore(backend: FakeBackend(player: player))
         await store.start()
-        try await screen(SettingsView(store: store, player: player), "S-03-settings-dark", scheme: .dark, height: 1400)
-        try await screen(SettingsView(store: store, player: player), "S-03-settings-light", scheme: .light, height: 1400)
+        try await screen(SettingsView(store: store, player: player), "S-03-settings-dark", scheme: .dark)
+        try await screen(SettingsView(store: store, player: player), "S-03-settings-light", scheme: .light)
+        try await screen(NavigationStack { ProfileEditView(store: store, player: player) }, "S-03-profile-edit-dark",
+                         scheme: .dark, height: 1400)
     }
 
     /// كل التعابير، وكل التلبيسات، والمقاعد الخمسة، والمبسّط تحت ٢٤، والشماغ المبسّط تحت ٤٠.

@@ -25,14 +25,15 @@ final class FirebaseBackend: ProfileBackend {
         return try await Auth.auth().signInAnonymously().user.uid
     }
 
-    func observePlayer(id: String, onChange: @escaping @MainActor (Player?) -> Void) {
+    func observePlayer(id: String, onChange: @escaping @MainActor (Player?) -> Void, onError: @escaping @MainActor () -> Void) {
         stopObserving()
-        listener = Firestore.firestore().collection("players").document(id).addSnapshotListener { snapshot, _ in
+        listener = Firestore.firestore().collection("players").document(id).addSnapshotListener { snapshot, error in
             let player = snapshot.flatMap { $0.exists ? Player(id: id, fields: $0.data() ?? [:]) : nil }
             let missing = snapshot.map { !$0.exists } ?? false
+            let failed = snapshot == nil || error != nil
             Task { @MainActor in
-                // خطأ القراءة لا يمحو ملفاً معروضاً؛ الغياب المؤكَّد وحده يعيد لأول فتح.
-                if player != nil || missing { onChange(player) }
+                // الغياب المؤكَّد وحده يعيد لأول فتح؛ والخطأ يُبلَّغ ولا يمحو ملفاً معروضاً.
+                if player != nil || missing { onChange(player) } else if failed { onError() }
             }
         }
     }
