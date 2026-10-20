@@ -77,6 +77,90 @@ enum Copy {
         static let packMissing = "يلزم اتصال مرة لتجهيز التدريب." // §١٠
     }
 
+    /// الكروت: الأسماء والسطور من RULES-cards.md «نصوص بطاقات الكروت» حرفاً.
+    enum Cards {
+        static let title = "الكروت"
+        static func name(_ type: CardType) -> String {
+            switch type {
+            case .clearSquares: "تفريغ المربعات"
+            case .swapQuestion: "غيّر السؤال"
+            case .placeAnywhere: "ضع في أي مربع"
+            case .anyAnswer: "أي إجابة صح"
+            case .burn: "تصدٍّ وحرق"
+            case .doubleCross: "صليبان"
+            case .fortify: "تحصين"
+            }
+        }
+        static func line(_ type: CardType) -> String {
+            switch type {
+            case .clearSquares: "يفرّغ مربعاً أو مربعين مملوكين من أي موضع."
+            case .swapQuestion: "يستبدل سؤالك بآخر، ويبدأ المؤقّت من جديد."
+            case .placeAnywhere: "تضع مركز صليبك ولو على مربع مملوك."
+            case .anyAnswer: "تُقبل إجابتك مهما كانت. العبه قبل أن تختار."
+            case .burn: "يردّ مربعاتك إن اعتُدي عليها، خلال عشر ثوانٍ."
+            case .doubleCross: "صليبان في موضعين بدل صليب واحد."
+            case .fortify: "يجمّد صليباً على اللوح حتى يبدأ دورك الثالث بعده."
+            }
+        }
+        static func icon(_ type: CardType) -> String {
+            switch type {
+            case .burn: "icon-flame"
+            case .swapQuestion: "icon-refresh-cw"
+            case .anyAnswer: "icon-circle-check"
+            case .clearSquares: "icon-eraser"
+            case .fortify: "icon-shield"
+            case .doubleCross: "icon-copy-plus"
+            case .placeAnywhere: "icon-crosshair"
+            }
+        }
+        static func clearCount(_ n: Int) -> String { n == 1 ? "مربع واحد" : "مربعان" }
+        static let play = "العبه"
+        static let notNow = "ليس وقته."
+        static let reactionOnly = "يعمل وحده إن اعتُدي على مربعاتك."
+        static let questionWindow = "يُلعب في دورك قبل الإجابة."
+        static let boardWindow = "يُلعب بعد الإصابة وقبل الاعتماد."
+        static let notInGroup = "لا يعمل في الجولة الجماعية."
+        static let swapLocked = "لا يُلعب بعد «أي إجابة صح»."
+        static let oneBoardCard = "كرت لوح واحد في الدور."
+        static let none = "لا كروت معك."
+        static let clearTarget = "اختر المربعات المملوكة التي تفرّغها"
+        static let fortifyTarget = "اختر مركز التحصين"
+        static let confirm = "اعتمد"
+        static let cancel = "إلغاء"
+        static let anyActive = "«أي إجابة صح» مفعّل: أي إجابة تُقبل."
+        static let doubleActive = "«صليبان»: اختر مركزين."
+        static let anywhereActive = "«ضع في أي مربع»: يجوز المركز على مربع مملوك."
+    }
+
+    enum Choice {
+        static let square = "مربع"
+        static func box(_ left: Int) -> String { "صندوق (\(left))" }
+        static let openBox = "افتح الصندوق"
+        static let boxesGone = "نفدت صناديقك."
+        static func gotCard(_ name: String) -> String { "خرج لك: \(name)" }
+        static func opened(_ name: String) -> String { "فتح \(name) صندوقاً" }
+    }
+
+    enum Group {
+        static let title = "جولة جماعية"
+        static let line = "سؤال للجميع: أسرع إجابة صحيحة تكسب الاختيار."
+        static let answered = "أجاب"
+        static let waiting = "وصلت إجابتك. ننتظر البقية…"
+        static let noWinner = "لم يُصب أحد." // §١٠
+        static func winner(_ name: String) -> String { "كسبها \(name)" }
+    }
+
+    enum Burn {
+        static let title = "اعتُدي على مربعاتك"
+        static func line(_ name: String, _ count: Int) -> String {
+            "أخذ \(name) \(count == 1 ? "مربعاً واحداً" : count == 2 ? "مربعين" : "\(count) مربعات") منك. احرق لتعيدها."
+        }
+        static let burn = "احرق"
+        static let skip = "تجاوز"
+        static func waiting(_ names: String) -> String { "\(names) يقرّر الحرق…" }
+        static let fortified = "محصّن"
+    }
+
     enum Picker {
         static let head = "الرأس"
         static let eye = "العين"

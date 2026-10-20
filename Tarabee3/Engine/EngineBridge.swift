@@ -45,20 +45,40 @@ final class EngineBridge {
         self.bridge = bridge
     }
 
-    func createTraining(setupJSON: String, now: Double) throws -> Output {
-        try call("createTraining", [setupJSON, now])
+    /// viewer: المقعد الذي يُعرض له (منه «إجابتي» في الجماعية).
+    func createTraining(setupJSON: String, now: Double, viewer: Int) throws -> Output {
+        try call("createTraining", [setupJSON, now, viewer])
     }
 
-    func tick(state: String, now: Double) throws -> Output {
-        try call("tick", [state, now])
+    func tick(state: String, now: Double, viewer: Int) throws -> Output {
+        try call("tick", [state, now, viewer])
     }
 
     func answer(state: String, seatNo: Int, choice: AnswerChoice, now: Double) throws -> Output {
         try call("answer", [state, seatNo, choice.json, now])
     }
 
-    func choose(state: String, seatNo: Int, square: Square, now: Double) throws -> Output {
-        try call("choose", [state, seatNo, square.row, square.col, now])
+    /// مربع بمركز أو مركزين، أو صندوق (R-21، R-36).
+    func choose(state: String, seatNo: Int, centers: [Square], now: Double) throws -> Output {
+        struct Pick: Encodable { var kind = "square"; var centers: [Square] }
+        let pick = String(data: try JSONEncoder().encode(Pick(centers: centers)), encoding: .utf8) ?? "{}"
+        return try call("choose", [state, seatNo, pick, now])
+    }
+
+    func openBox(state: String, seatNo: Int, now: Double) throws -> Output {
+        try call("choose", [state, seatNo, "{\"kind\":\"box\"}", now])
+    }
+
+    /// كرت في نافذته، بحمولته: مربعات التفريغ أو مركز التحصين (RULES-cards).
+    func playCard(state: String, seatNo: Int, cardId: Int, cells: [Square] = [], center: Square? = nil, now: Double) throws -> Output {
+        struct Target: Encodable { var cells: [Square]; var center: Square? }
+        let target = String(data: try JSONEncoder().encode(Target(cells: cells, center: center)), encoding: .utf8) ?? "{}"
+        return try call("playCard", [state, seatNo, cardId, target, now])
+    }
+
+    /// قرار المتضرّر في نافذة الحرق (R-40).
+    func decideBurn(state: String, seatNo: Int, burn: Bool, now: Double) throws -> Output {
+        try call("decideBurn", [state, seatNo, burn, now])
     }
 
     /// مربعات الصليب من المحرّك نفسه، للمعاينة قبل الحكم (R-23)؛ لا قاعدة لعب في سويفت (القاعدة ٥).

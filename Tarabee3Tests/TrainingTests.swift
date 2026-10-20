@@ -9,11 +9,52 @@ final class TestClock {
     var now: Double = 1_000_000
 }
 
+/// اللعب الآلي لمقعدي في الاختبارات: الخيار الأول، وأول مربع فارغ، والحرق متروك.
+@MainActor
+enum AutoPlay {
+    static func firstChoice(_ q: QuestionView) -> AnswerChoice { q.isTrueFalse ? .truth(true) : .option(1) }
+
+    /// يعاين المربعات الفارغة غير المحصّنة بقدر ما يلزم (اثنان بـ «صليبين»).
+    static func selectSquares(_ s: TrainingSession) {
+        guard let view = s.view else { return }
+        let need = view.round?.boardCard == .doubleCross ? 2 : 1
+        let free = (0..<view.board.count).map { Square(row: $0 / view.boardSize, col: $0 % view.boardSize) }
+            .filter { view.owner($0) == 0 && !view.fortified.contains($0) && !s.preview.contains($0) }
+        for square in free.prefix(need - s.preview.count) { s.select(square) }
+    }
+
+    static func step(_ s: TrainingSession, group: Bool = true, choose: Bool = true) {
+        guard let round = s.view?.round else { return }
+        if s.myBurnWindow != nil { s.decideBurn(false); return }
+        if group && s.canAnswerGroup { s.answer(firstChoice(round.question)); return }
+        if s.phase == "answering", s.isMyTurn, s.sentAnswer == nil { s.answer(firstChoice(round.question)); return }
+        if choose && s.isChooser { selectSquares(s); s.commit() }
+    }
+}
+
 /// «المحرّك نفسه يعمل في الاختبارات الآلية وعلى الجوال، بنسخة واحدة» (معيار M-04): هنا يعمل engine.js المشحون مع
 /// التطبيق في JavaScriptCore على محاكي آيفون، ويلعب تدريباً كاملاً.
 @MainActor
 final class TrainingTests: XCTestCase {
     private let player = Player(id: "p", name: "أبو خليل", persona: Persona(expression: .confident, head: .shemagh, eye: .none, neck: .none))
+
+    private func session(size: Int = 3, boardSize: Int = 9, seed: Int) -> (TrainingSession, TestClock) {
+        let clock = TestClock()
+        let s = TrainingSession(setup: .init(size: size, boardSize: boardSize), player: player, clock: { clock.now })
+        s.start(seed: seed, runLoop: false)
+        return (s, clock)
+    }
+
+    /// يقدّم ربع ثانية في كل خطوة حتى يتحقّق الشرط أو تنتهي المباراة، ويلعب مقعدي بما يسمح به.
+    private func run(_ s: TrainingSession, _ clock: TestClock, group: Bool = true, choose: Bool = true,
+                     until done: (TrainingSession) -> Bool) {
+        for _ in 0..<8000 where !done(s) && s.phase != "ended" && !s.failed {
+            clock.now += 250
+            s.advance(to: clock.now)
+            if done(s) { return }
+            AutoPlay.step(s, group: group, choose: choose)
+        }
+    }
 
     func testBundledEngineAndPackLoad() throws {
         XCTAssertNoThrow(try EngineBridge())
@@ -21,36 +62,17 @@ final class TrainingTests: XCTestCase {
         XCTAssertFalse(pack.version.isEmpty)
     }
 
-    /// يلعب حتى النهاية: اللاعب يجيب بالخيار الأول ويعتمد أول مربع فارغ، والآليون يلعبهم المحرّك.
-    private func playToEnd(size: Int, boardSize: Int, seed: Int) throws -> TrainingSession {
-        let clock = TestClock()
-        let session = TrainingSession(setup: .init(size: size, boardSize: boardSize), player: player, clock: { clock.now })
-        session.start(seed: seed, runLoop: false)
-        XCTAssertFalse(session.failed)
-        for _ in 0..<5000 {
-            guard let view = session.view, view.phase.kind != "ended" else { break }
-            clock.now += 500
-            session.advance(to: clock.now)
-            guard session.isMyTurn, let round = session.view?.round else { continue }
-            if session.view?.phase.kind == "answering", session.sentAnswer == nil {
-                session.answer(round.question.isTrueFalse ? .truth(true) : .option(1))
-            } else if session.view?.phase.kind == "choosing", let board = session.view?.board,
-                      let empty = board.firstIndex(of: 0) {
-                session.select(Square(row: empty / boardSize, col: empty % boardSize))
-                session.commit()
-            }
-        }
-        return session
-    }
-
     func testFullTrainingMatchForEverySize() throws {
         for (size, board) in [(3, 9), (4, 10), (5, 11)] {
-            let session = try playToEnd(size: size, boardSize: board, seed: 7 + size)
-            let view = try XCTUnwrap(session.view)
+            let (s, clock) = session(size: size, boardSize: board, seed: 7 + size)
+            XCTAssertFalse(s.failed)
+            run(s, clock) { _ in false }
+            let view = try XCTUnwrap(s.view)
             XCTAssertEqual(view.phase.kind, "ended", "حجم \(size)")
             XCTAssertEqual(view.ranking?.count, size)
             XCTAssertEqual(view.seats.filter(\.isBot).count, size - 1)
             XCTAssertEqual(view.seats.first { !$0.isBot }?.displayName, "أبو خليل")
+            XCTAssertFalse(s.failed)
         }
     }
 
@@ -83,22 +105,68 @@ final class TrainingTests: XCTestCase {
         XCTAssertNil(TrainingPack.parse(try! JSONSerialization.data(withJSONObject: pack)))
     }
 
-    func testPreviewOnlyOnEmptySquareAndOnlyWhenChoosing() throws {
-        let clock = TestClock()
-        let session = TrainingSession(setup: .init(size: 3, boardSize: 9), player: player, clock: { clock.now })
-        session.start(seed: 1, runLoop: false)
-        session.select(Square(row: 0, col: 0))
-        XCTAssertNil(session.preview, "لا معاينة خارج الاختيار")
+    func testPreviewOnlyWhenChoosing() throws {
+        let (s, _) = session(seed: 1)
+        s.select(Square(row: 0, col: 0))
+        XCTAssertTrue(s.preview.isEmpty, "لا معاينة خارج الاختيار")
+        XCTAssertFalse(s.canCommit)
     }
 
     func testCorrectAnswerHiddenUntilAnswered() throws {
-        let clock = TestClock()
-        let session = TrainingSession(setup: .init(size: 3, boardSize: 9), player: player, clock: { clock.now })
-        session.start(seed: 3, runLoop: false)
+        let (s, clock) = session(seed: 3)
         clock.now += 3000
-        session.advance(to: clock.now)
-        let round = try XCTUnwrap(session.view?.round)
+        s.advance(to: clock.now)
+        let round = try XCTUnwrap(s.view?.round)
         XCTAssertNil(round.question.correct)
+    }
+
+    /// الجماعية (R-26): بعد كل دورتين، الجميع يجيب، ومن أجاب يُعلَّم بلا صوابه، ولا تُكشف الصحيحة حتى تنتهي.
+    func testGroupRoundHidesCorrectnessUntilItEnds() throws {
+        let (s, clock) = session(seed: 5)
+        run(s, clock, group: false) { $0.canAnswerGroup }
+        XCTAssertTrue(s.canAnswerGroup, "جولة جماعية في التدريب")
+        let round = try XCTUnwrap(s.view?.round)
+        XCTAssertTrue(round.isGroup)
+        XCTAssertGreaterThanOrEqual(s.view?.cycle ?? 0, 2, "بعد دورتين")
+        XCTAssertNil(round.question.correct)
+        XCTAssertNil(round.groupAnswers)
+        XCTAssertNil(round.winnerSeat)
+
+        let mine = AutoPlay.firstChoice(round.question)
+        s.answer(mine)
+        XCTAssertFalse(s.canAnswerGroup, "إجابة واحدة لكل لاعب")
+        if s.phase == "group" {
+            XCTAssertEqual(s.view?.round?.myAnswer, mine)
+            XCTAssertEqual(s.view?.round?.answeredSeats?.contains(TrainingSession.mySeat), true)
+            XCTAssertNil(s.view?.round?.question.correct)
+            XCTAssertNil(s.view?.round?.groupAnswers)
+        }
+        for _ in 0..<200 where s.phase == "group" {
+            clock.now += 250
+            s.advance(to: clock.now)
+        }
+        let over = try XCTUnwrap(s.view?.round)
+        XCTAssertEqual(over.id, round.id)
+        XCTAssertNotNil(over.question.correct, "تُكشف بعد انتهائها")
+        XCTAssertEqual(over.groupAnswers?.first { $0.seatNo == TrainingSession.mySeat }?.choice, mine)
+        XCTAssertNil(over.answeredSeats)
+    }
+
+    /// الصندوق (R-37): صندوقان للاعب، والآليون بلا صناديق، والكرت معلن على شارته.
+    func testBoxGivesAnAnnouncedCard() throws {
+        let (s, clock) = session(seed: 2)
+        XCTAssertEqual(s.me?.boxesLeft, 2)
+        XCTAssertEqual(s.view?.seats.filter(\.isBot).map(\.boxesLeft), [0, 0])
+        run(s, clock, choose: false) { $0.isChooser }
+        XCTAssertTrue(s.isChooser, "أصاب مرة على الأقل")
+        s.openBox()
+        XCTAssertFalse(s.failed)
+        XCTAssertEqual(s.me?.boxesLeft, 1)
+        XCTAssertEqual(s.me?.cards.count, 1)
+        XCTAssertEqual(s.view?.round?.choice, "box")
+        let card = try XCTUnwrap(s.me?.cards.first)
+        XCTAssertEqual(s.view?.round?.boxCard?.type, card.type)
+        XCTAssertFalse(s.playability(card).ok, "لا يُلعب بعد انتهاء الاختيار")
     }
 }
 
@@ -106,6 +174,7 @@ final class TrainingTests: XCTestCase {
 @MainActor
 final class MatchSnapshotTests: XCTestCase {
     private let player = Player(id: "p", name: "أبو خليل", persona: Persona(expression: .confident, head: .shemagh, eye: .none, neck: .none))
+    private var shots = Set<String>()
 
     private var directory: URL {
         let path = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
@@ -128,6 +197,12 @@ final class MatchSnapshotTests: XCTestCase {
         }
         try XCTUnwrap(image.pngData()).write(to: directory.appendingPathComponent("\(name).png"))
         window.isHidden = true
+    }
+
+    /// صورة واحدة لكل اسم.
+    private func shot<V: View>(_ view: V, _ name: String) async throws {
+        guard shots.insert(name).inserted else { return }
+        try await capture(view, name)
     }
 
     /// يقدّم المباراة حتى يتحقّق الشرط.
@@ -155,25 +230,108 @@ final class MatchSnapshotTests: XCTestCase {
         advance(s, clock) { $0.view?.phase.kind == "answering" && $0.isMyTurn }
         try await capture(screen, "S-09-your-turn")
 
-        // أجيب صحيحاً لأصل إلى الاختيار: الصحيحة لا يراها الجوال قبل الإجابة، فأجرّب حتى أصيب
-        for _ in 0..<40 where s.view?.phase.kind != "choosing" {
-            if s.view?.phase.kind == "answering", s.isMyTurn, let q = s.view?.round?.question {
-                s.answer(q.isTrueFalse ? .truth(true) : .option(1))
+        // أجيب لأصل إلى الاختيار: الصحيحة لا يراها الجوال قبل الإجابة، فأجرّب حتى أصيب
+        for _ in 0..<40 where !s.isChooser {
+            if s.view?.phase.kind == "answering", s.isMyTurn, s.sentAnswer == nil, let q = s.view?.round?.question {
+                s.answer(AutoPlay.firstChoice(q))
             }
-            advance(s, clock) { ($0.view?.phase.kind == "answering" && $0.isMyTurn && $0.sentAnswer == nil) || $0.view?.phase.kind == "choosing" && $0.isMyTurn }
+            if s.myBurnWindow != nil { s.decideBurn(false) }
+            advance(s, clock) { ($0.view?.phase.kind == "answering" && $0.isMyTurn && $0.sentAnswer == nil) || $0.isChooser || $0.myBurnWindow != nil || $0.phase == "ended" }
         }
-        if s.view?.phase.kind == "choosing", s.isMyTurn {
-            s.select(Square(row: 4, col: 4))
-            if s.preview == nil, let i = s.view?.board.firstIndex(of: 0) { s.select(Square(row: i / 10, col: i % 10)) }
+        if s.isChooser {
+            AutoPlay.selectSquares(s)
             try await capture(screen, "S-11-choose-preview")
             s.commit()
             try await capture(screen, "M-display-after-commit")
         }
 
-        advance(s, clock) { $0.view?.phase.kind == "ended" }
+        for _ in 0..<4000 where s.phase != "ended" {
+            clock.now += 250
+            s.advance(to: clock.now)
+            AutoPlay.step(s)
+        }
         try await capture(screen, "S-14-result-dark")
         try await capture(screen, "S-14-result-light", dark: false)
 
         try await capture(TrainingSetupView(player: player, onClose: {}), "S-16-training-setup")
+    }
+
+    /// شاشات M-05: الجماعية، والصندوق، ويد الكروت، والاستهداف، وكرت اللوح، ونافذة الحرق.
+    /// الكرت من الصندوق بالقرعة، فتُجرَّب بذور حتى تظهر كلها؛ والناقص يُسجَّل في السجلّ لا يُسكت.
+    func testCardAndGroupScreens() async throws {
+        let wanted: Set = ["S-12-group", "S-12-group-answered", "S-11-choice", "M-box-opened", "M-cards-sheet",
+                           "S-09-cards", "M-targeting", "S-11-board-card", "S-13-burn", "M-burn-waiting"]
+        for seed in 1...40 where !shots.isSuperset(of: wanted) {
+            let clock = TestClock()
+            let s = TrainingSession(setup: .init(size: 3, boardSize: 9), player: player, clock: { clock.now })
+            s.start(seed: seed, runLoop: false)
+            let screen = MatchScreen(session: s, onPlayAgain: {}, onExit: {})
+            for _ in 0..<6000 where s.phase != "ended" && !s.failed {
+                clock.now += 250
+                s.advance(to: clock.now)
+                guard let round = s.view?.round else { continue }
+                if s.myBurnWindow != nil {
+                    try await shot(screen, "S-13-burn")
+                    s.decideBurn(true)
+                } else if s.phase == "burn" {
+                    try await shot(screen, "M-burn-waiting")
+                } else if s.canAnswerGroup {
+                    try await shot(screen, "S-12-group")
+                    s.answer(AutoPlay.firstChoice(round.question))
+                    if s.phase == "group" { try await shot(screen, "S-12-group-answered") }
+                } else if s.phase == "answering", s.isMyTurn, s.sentAnswer == nil, s.targeting == nil {
+                    if let card = s.me?.cards.first(where: { s.playability($0).ok }) {
+                        try await shot(screen, "S-09-cards")
+                        try await shot(CardsSheet(session: s, onClose: {}), "M-cards-sheet")
+                        s.play(card)
+                        if s.targeting != nil {
+                            target(s)
+                            try await shot(screen, "M-targeting")
+                            if s.targetReady { s.confirmTarget() } else { s.cancelTarget() }
+                        }
+                    }
+                    if s.phase == "answering", s.sentAnswer == nil, let q = s.view?.round?.question {
+                        s.answer(AutoPlay.firstChoice(q))
+                    }
+                } else if s.isChooser {
+                    if (s.me?.boxesLeft ?? 0) > 0 {
+                        try await shot(screen, "S-11-choice")
+                        s.openBox()
+                        try await shot(screen, "M-box-opened")
+                    } else {
+                        if s.view?.round?.boardCard == nil, let card = s.me?.cards.first(where: { s.playability($0).ok }) {
+                            s.play(card)
+                        }
+                        AutoPlay.selectSquares(s)
+                        if s.view?.round?.boardCard != nil { try await shot(screen, "S-11-board-card") }
+                        s.commit()
+                    }
+                }
+            }
+            XCTAssertFalse(s.failed, "بذرة \(seed)")
+        }
+        let missing = wanted.subtracting(shots)
+        if !missing.isEmpty { print("SNAPSHOTS-MISSING: \(missing.sorted())") }
+        // ما لا يتوقّف على قرعة الكروت يلزم ظهوره
+        for name in ["S-12-group", "S-11-choice", "M-box-opened", "M-cards-sheet"] {
+            XCTAssertTrue(shots.contains(name), name)
+        }
+    }
+
+    /// يختار هدف الكرت: مربعات مملوكة لغيري للتفريغ، ومركز اللوح للتحصين.
+    private func target(_ s: TrainingSession) {
+        guard let view = s.view else { return }
+        let all = (0..<view.board.count).map { Square(row: $0 / view.boardSize, col: $0 % view.boardSize) }
+        switch s.targeting {
+        case .clear(_, let count, _):
+            let owned = all.filter { view.owner($0) != 0 && !view.fortified.contains($0) }
+            let others = owned.filter { view.owner($0) != TrainingSession.mySeat }
+            let mine = owned.filter { view.owner($0) == TrainingSession.mySeat }
+            for square in (others + mine).prefix(count) { s.select(square) }
+        case .fortify:
+            s.select(Square(row: view.boardSize / 2, col: view.boardSize / 2))
+        case nil:
+            break
+        }
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
-// عرض المباراة كما يرسله المحرّك (server/engine/view.ts)، أون لاين أو في التدريب (القرار 0019).
-// الإجابة الصحيحة لا تكون فيه قبل انتهاء السؤال (R-30).
+// عرض المباراة كما يرسله المحرّك لمقعد بعينه (server/engine/view.ts)، أون لاين أو في التدريب (القرار 0019).
+// الإجابة الصحيحة لا تكون فيه قبل انتهاء السؤال (R-30)، وفي الجماعية لا يُعرف من أصاب حتى تنتهي (R-26).
 
 /** الإجابة: رقم الخيار ١–٤، أو صحّ وخطأ. */
 enum AnswerChoice: Codable, Equatable, Sendable {
@@ -52,12 +52,42 @@ struct PersonaWire: Codable, Equatable, Sendable {
     }
 }
 
+/// الكروت السبعة (RULES-cards.md، 03-schema: Card.type).
+enum CardType: String, Codable, Sendable, CaseIterable {
+    case burn
+    case swapQuestion = "swap_question"
+    case anyAnswer = "any_answer"
+    case clearSquares = "clear_squares"
+    case fortify
+    case doubleCross = "double_cross"
+    case placeAnywhere = "place_anywhere"
+
+    /// نافذته (RULES-cards «النوافذ»).
+    enum Window { case question, board, reaction }
+
+    var window: Window {
+        switch self {
+        case .swapQuestion, .anyAnswer, .clearSquares, .fortify: .question
+        case .doubleCross, .placeAnywhere: .board
+        case .burn: .reaction
+        }
+    }
+}
+
+struct CardView: Codable, Equatable, Sendable, Identifiable {
+    var id: Int
+    var type: CardType
+    var clearCount: Int?
+}
+
 struct SeatView: Codable, Equatable, Sendable, Identifiable {
     var seatNo: Int
     var isBot: Bool
     var displayName: String
     var persona: PersonaWire
     var squares: Int
+    var boxesLeft: Int
+    var cards: [CardView]
 
     var id: Int { seatNo }
     /** لون المقعد من رقمه (05-ui §١). */
@@ -79,22 +109,61 @@ struct Square: Codable, Equatable, Hashable, Sendable {
     var col: Int
 }
 
+struct GroupAnswerView: Codable, Equatable, Sendable {
+    var seatNo: Int
+    var choice: AnswerChoice
+    var correct: Bool
+}
+
+struct BoxCardView: Codable, Equatable, Sendable {
+    var type: CardType
+    var clearCount: Int?
+}
+
 struct RoundView: Codable, Equatable, Sendable {
     var id: Int
-    var seatNo: Int
+    var type: String // turn | group
+    var seatNo: Int?
     var question: QuestionView
     var deadline: Double
     var answer: AnswerChoice?
-    var result: String? // correct | wrong | timeout
-    var choice: Square?
+    var result: String? // correct | wrong | timeout | noWinner
+    var chooser: Int?
+    var choice: String? // square | box
+    var centers: [Square]?
     var choiceDropped: Bool?
+    var boxCard: BoxCardView?
+    var played: [CardType]?
+    var anyAnswer: Bool?
+    var boardCard: CardType?
+    var answeredSeats: [Int]?
+    var myAnswer: AnswerChoice?
+    var groupAnswers: [GroupAnswerView]?
+    var winnerSeat: Int?
+
+    var isGroup: Bool { type == "group" }
+}
+
+struct BurnWindowView: Codable, Equatable, Sendable {
+    var seatNo: Int
+    var cells: [Square]
+    var decided: String?
 }
 
 struct PhaseView: Codable, Equatable, Sendable {
-    var kind: String // countdown | answering | choosing | display | ended
+    var kind: String // countdown | answering | group | choosing | burn | display | ended
     var until: Double?
     var deadline: Double?
     var reason: String?
+    var windows: [BurnWindowView]?
+}
+
+struct FortificationView: Codable, Equatable, Sendable, Identifiable {
+    var id: Int
+    var ownerSeat: Int
+    var center: Square
+    var cells: [Square]
+    var turnsLeft: Int
 }
 
 struct RankRow: Codable, Equatable, Sendable {
@@ -109,6 +178,7 @@ struct MatchTimes: Codable, Equatable, Sendable {
     var choose: Double
     var display: Double
     var countdown: Double
+    var burn: Double
 }
 
 struct MatchView: Codable, Equatable, Sendable {
@@ -116,14 +186,20 @@ struct MatchView: Codable, Equatable, Sendable {
     var boardSize: Int
     var cycle: Int
     var cyclesTotal: Int
+    var groupEnabled: Bool
     var times: MatchTimes
     var board: [Int]
     var seats: [SeatView]
     var order: [Int]
+    var fortifications: [FortificationView]
     var phase: PhaseView
     var round: RoundView?
     var ranking: [RankRow]?
 
     func seat(_ no: Int) -> SeatView? { seats.first { $0.seatNo == no } }
     func owner(_ row: Int, _ col: Int) -> Int { board[row * boardSize + col] }
+    func owner(_ square: Square) -> Int { owner(square.row, square.col) }
+
+    /// المربعات المحصّنة الآن (RULES-cards §٥).
+    var fortified: Set<Square> { Set(fortifications.flatMap(\.cells)) }
 }

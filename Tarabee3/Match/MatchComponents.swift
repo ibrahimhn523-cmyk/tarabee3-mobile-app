@@ -13,10 +13,13 @@ enum BoardMetrics {
 /// اللوح بعرض الشاشة. مربعاته دون ٤٤ نقطة في ١١×١١ (05-ui §١٦): الضغطة تعاين، والاعتماد زرّ مستقل.
 struct BoardView: View {
     let view: MatchView
-    var preview: Square? = nil
+    /// المراكز المعاينة: واحد، أو اثنان بـ «صليبان».
+    var preview: [Square] = []
     /// مربعات الصليب المعاين، من المحرّك (TrainingSession.previewCells).
     var previewCells: Set<Square> = []
     var previewSeat: Int? = nil
+    /// مربعات الاستهداف (تفريغ أو تحصين) قبل اعتمادها.
+    var targetCells: Set<Square> = []
     var small = false
     var onTap: ((Square) -> Void)? = nil
     @Environment(\.colorScheme) private var scheme
@@ -25,6 +28,8 @@ struct BoardView: View {
         let n = view.boardSize
         let gap = small ? BoardMetrics.gapSmall : BoardMetrics.gap
         // اللوح من اليمين كالواجهة كلها (القاعدة ٨): العمود الأول يمين. وكل الأجهزة من اليمين، فاللوح واحد عند الجميع
+        let fortified = view.fortified
+        let centers = Set(view.fortifications.map(\.center))
         GeometryReader { geo in
             let side = (geo.size.width - gap * CGFloat(n - 1)) / CGFloat(n)
             VStack(spacing: gap) {
@@ -35,7 +40,10 @@ struct BoardView: View {
                             CellView(
                                 owner: view.owner(row, col),
                                 previewSeat: previewCells.contains(square) ? previewSeat : nil,
-                                isCenter: preview == square,
+                                isCenter: preview.contains(square),
+                                fortified: fortified.contains(square),
+                                fortCenter: centers.contains(square),
+                                targeted: targetCells.contains(square),
                                 side: side
                             )
                             .onTapGesture { onTap?(square) }
@@ -55,7 +63,8 @@ struct BoardView: View {
     private func cellLabel(row: Int, col: Int) -> String {
         let owner = view.owner(row, col)
         let who = owner == 0 ? "فارغ" : (view.seat(owner)?.displayName ?? "")
-        return "الصفّ \(row + 1)، العمود \(col + 1)، \(who)"
+        let fort = view.fortified.contains(Square(row: row, col: col)) ? "، \(Copy.Burn.fortified)" : ""
+        return "الصفّ \(row + 1)، العمود \(col + 1)، \(who)\(fort)"
     }
 }
 
@@ -64,6 +73,11 @@ struct CellView: View {
     let owner: Int
     var previewSeat: Int?
     var isCenter = false
+    /// محصّن (05-ui §٦): خطوط fortified بلا إطار، وقفل فوق مركزه.
+    var fortified = false
+    var fortCenter = false
+    /// مستهدف بكرت قبل اعتماده.
+    var targeted = false
     let side: CGFloat
     @Environment(\.colorScheme) private var scheme
 
@@ -85,9 +99,20 @@ struct CellView: View {
             } else {
                 shape.fill(Color(hex: scheme == .dark ? Tokens.Mode.darkCellEmpty : Tokens.Mode.Light.cellEmpty))
             }
+            if fortified {
+                FortifiedStripes(onLightTeam: Tokens.Fortified.lightTeams.contains(Team(rawValue: owner)?.tokenName ?? ""), side: side)
+                    .clipShape(shape)
+                if fortCenter {
+                    Image("icon-lock").resizable().frame(width: side * 0.5, height: side * 0.5)
+                        .foregroundStyle(Palette.of(scheme).text)
+                }
+            }
             if let previewSeat, let team = Team(rawValue: previewSeat) {
                 shape.fill(team.flat.opacity(Alpha.preview))
                 shape.strokeBorder(Palette.of(scheme).text, lineWidth: isCenter ? 2.5 : 1.5)
+            }
+            if targeted {
+                shape.strokeBorder(Palette.of(scheme).text, style: StrokeStyle(lineWidth: 2.5, dash: [3, 2]))
             }
         }
         .frame(width: side, height: side)
@@ -97,12 +122,39 @@ struct CellView: View {
     }
 }
 
+/// خطوط التحصين (fortified في ملف القيم): مائلة بعرض ونسبة، بيضاء، وداكنة على المقاعد الفاتحة.
+struct FortifiedStripes: View {
+    let onLightTeam: Bool
+    let side: CGFloat
+
+    var body: some View {
+        let color = Color(hex: onLightTeam ? Tokens.Fortified.stripeColorOnLightTeams : Tokens.Fortified.stripeColor)
+            .opacity(TokenValue.number(Tokens.Fortified.stripeAlpha))
+        let width = side * TokenValue.share(Tokens.Fortified.stripeWidth)
+        let period = side * TokenValue.share(Tokens.Fortified.stripePeriod)
+        Canvas { context, size in
+            var x = -size.height
+            while x < size.width {
+                var p = Path()
+                p.move(to: CGPoint(x: x, y: size.height))
+                p.addLine(to: CGPoint(x: x + size.height, y: 0))
+                context.stroke(p, with: .color(color), lineWidth: width)
+                x += period
+            }
+        }
+        .frame(width: side, height: side)
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - شارة المقعد
 
 /// الأفاتار ٣٢، والاسم، وعدد مربعاته، وشريط بلون المقعد، ووسم «آلي» للآلي دائماً (05-ui §٦).
 struct SeatBadge: View {
     let seat: SeatView
     var active = false
+    /// في الجماعية: أجاب، بلا كشف صوابه (S-12).
+    var answered = false
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -114,8 +166,22 @@ struct SeatBadge: View {
             HStack(spacing: Space.s(0)) {
                 Text(verbatim: String(seat.squares)).font(.app(.caption, .bold)).monospacedDigit()
                 if seat.isBot { BotTag() }
+                if answered {
+                    Image("icon-check").resizable().frame(width: 12, height: 12).foregroundStyle(palette.text)
+                        .accessibilityLabel(Copy.Group.answered)
+                }
             }
             .foregroundStyle(palette.textMuted)
+            // الكروت معلنة للجميع (R-39)
+            if !seat.cards.isEmpty {
+                HStack(spacing: 2) {
+                    ForEach(seat.cards) { card in
+                        Image(Copy.Cards.icon(card.type)).resizable().frame(width: 12, height: 12)
+                            .accessibilityLabel(Copy.Cards.name(card.type))
+                    }
+                }
+                .foregroundStyle(palette.text)
+            }
             Capsule().fill(seat.team.flat).frame(height: 3)
         }
         .padding(Space.s(1))

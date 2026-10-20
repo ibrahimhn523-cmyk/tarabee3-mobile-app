@@ -24,6 +24,8 @@ var Tarabee3Engine = (() => {
   __export(index_exports, {
     BOT_ACCURACY: () => BOT_ACCURACY,
     BOT_NAMES: () => BOT_NAMES,
+    BOXES_PER_SEAT: () => BOXES_PER_SEAT,
+    CARD_TYPES: () => CARD_TYPES,
     TIMES: () => TIMES,
     answer: () => answer,
     bridge: () => bridge,
@@ -32,7 +34,10 @@ var Tarabee3Engine = (() => {
     createTraining: () => createTraining,
     crossCells: () => crossCells,
     cyclesFor: () => cyclesFor,
+    decideBurn: () => decideBurn,
+    heldCards: () => heldCards,
     orderOf: () => orderOf,
+    playCard: () => playCard,
     questionsNeeded: () => questionsNeeded,
     ranking: () => ranking,
     suggestedBoard: () => suggestedBoard,
@@ -55,20 +60,31 @@ var Tarabee3Engine = (() => {
   function inBoard(boardSize, row, col) {
     return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && col >= 0 && row < boardSize && col < boardSize;
   }
-  function canCenter(board, boardSize, row, col) {
-    return inBoard(boardSize, row, col) && board[index(boardSize, row, col)] === 0;
+  function fortifiedSet(boardSize, forts) {
+    const set = /* @__PURE__ */ new Set();
+    for (const f of forts) {
+      for (const c of crossCells(boardSize, f.center.row, f.center.col)) set.add(index(boardSize, c.row, c.col));
+    }
+    return set;
   }
-  function gain(board, boardSize, seatNo, row, col) {
-    return crossCells(boardSize, row, col).filter((c) => board[index(boardSize, c.row, c.col)] !== seatNo).length;
+  function canCenter(board, boardSize, row, col, fortified2, anywhere = false) {
+    if (!inBoard(boardSize, row, col)) return false;
+    const i = index(boardSize, row, col);
+    if (fortified2.has(i)) return false;
+    return anywhere || board[i] === 0;
   }
-  function applyCross(board, boardSize, seatNo, row, col) {
-    let changed = 0;
+  function gain(board, boardSize, seatNo, row, col, fortified2) {
+    return crossCells(boardSize, row, col).map((c) => index(boardSize, c.row, c.col)).filter((i) => !fortified2.has(i) && board[i] !== seatNo).length;
+  }
+  function applyCross(board, boardSize, seatNo, row, col, fortified2) {
+    const changes = [];
     for (const c of crossCells(boardSize, row, col)) {
       const i = index(boardSize, c.row, c.col);
-      if (board[i] !== seatNo) changed++;
+      if (fortified2.has(i) || board[i] === seatNo) continue;
+      changes.push({ index: i, from: board[i] });
       board[i] = seatNo;
     }
-    return changed;
+    return changes;
   }
   var isFull = (board) => board.every((s) => s !== 0);
   function squaresOf(board, seatNo) {
@@ -130,9 +146,9 @@ var Tarabee3Engine = (() => {
   function botPersona(state) {
     return { expression: pick(state, EXPRESSIONS), head: pick(state, HEADS), eye: pick(state, EYES), neck: pick(state, NECKS) };
   }
-  function planAnswer(state, at) {
+  function planAnswer(state, at, deadline) {
     const correct = random(state) < BOT_ACCURACY;
-    return { correct, botAt: at + int(state, BOT_ANSWER_DELAY[0], BOT_ANSWER_DELAY[1]) };
+    return { correct, botAt: Math.min(at + int(state, BOT_ANSWER_DELAY[0], BOT_ANSWER_DELAY[1]), deadline - 1) };
   }
   function botChoice(state, q, correct) {
     if (q.type === "truefalse") return correct ? q.correct : !q.correct;
@@ -141,12 +157,13 @@ var Tarabee3Engine = (() => {
     return pick(state, wrong);
   }
   function bestSquare(state, seatNo) {
+    const fortified2 = fortifiedSet(state.boardSize, state.fortifications);
     let best = -1;
     let options = [];
     for (let row = 0; row < state.boardSize; row++) {
       for (let col = 0; col < state.boardSize; col++) {
-        if (!canCenter(state.board, state.boardSize, row, col)) continue;
-        const g = gain(state.board, state.boardSize, seatNo, row, col);
+        if (!canCenter(state.board, state.boardSize, row, col, fortified2)) continue;
+        const g = gain(state.board, state.boardSize, seatNo, row, col, fortified2);
         if (g > best) {
           best = g;
           options = [{ row, col }];
@@ -155,12 +172,22 @@ var Tarabee3Engine = (() => {
     }
     return options.length ? pick(state, options) : null;
   }
-  function planChoose(state, at) {
-    return at + int(state, BOT_CHOOSE_DELAY[0], BOT_CHOOSE_DELAY[1]);
+  function planChoose(state, at, deadline) {
+    return Math.min(at + int(state, BOT_CHOOSE_DELAY[0], BOT_CHOOSE_DELAY[1]), deadline - 1);
   }
 
   // server/engine/types.ts
-  var TIMES = { countdown: 3e3, answer: 15e3, choose: 2e4, display: 3e3 };
+  var TIMES = { countdown: 3e3, answer: 15e3, choose: 2e4, display: 3e3, burn: 1e4 };
+  var CARD_TYPES = [
+    "burn",
+    "swap_question",
+    "any_answer",
+    "clear_squares",
+    "fortify",
+    "double_cross",
+    "place_anywhere"
+  ];
+  var BOXES_PER_SEAT = 2;
 
   // server/engine/engine.ts
   function cyclesFor(size, groupEnabled) {
@@ -168,6 +195,7 @@ var Tarabee3Engine = (() => {
     return { 3: 12, 4: 12, 5: 10 }[size];
   }
   var suggestedBoard = (size) => ({ 3: 9, 4: 10, 5: 11 })[size];
+  var validTime = (t) => typeof t === "number" && Number.isFinite(t);
   var clone = (s) => JSON.parse(JSON.stringify(s));
   function orderOf(state, cycle) {
     const n = state.firstOrder.length;
@@ -182,7 +210,6 @@ var Tarabee3Engine = (() => {
     if (!q) throw new Error(`question not in pool: ${id}`);
     return q;
   }
-  var validTime = (t) => typeof t === "number" && Number.isFinite(t);
   function checkConfig(config, now) {
     if (![3, 4, 5].includes(config.size)) throw new Error("size must be 3, 4 or 5");
     if (![9, 10, 11].includes(config.boardSize)) throw new Error("boardSize must be 9, 10 or 11");
@@ -193,10 +220,9 @@ var Tarabee3Engine = (() => {
   }
   function createMatch(config, now) {
     checkConfig(config, now);
-    const seatNos = config.seats.map((s) => s.seatNo);
-    const times = config.times ?? TIMES;
+    const times = { ...TIMES, ...config.times };
     const state = {
-      v: 1,
+      v: 2,
       size: config.size,
       boardSize: config.boardSize,
       groupEnabled: config.groupEnabled,
@@ -207,7 +233,13 @@ var Tarabee3Engine = (() => {
       firstOrder: [],
       cycle: 1,
       turnIndex: 0,
+      groupsDone: [],
       rounds: [],
+      // الآلي لا يفتح الصناديق (RULES-cards)
+      boxes: Object.fromEntries(config.seats.map((s) => [String(s.seatNo), s.isBot ? 0 : BOXES_PER_SEAT])),
+      cards: [],
+      fortifications: [],
+      fortsCreated: 0,
       pool: clone(config.questions),
       used: [],
       rng: config.seed | 0,
@@ -215,12 +247,13 @@ var Tarabee3Engine = (() => {
       startedAt: now,
       lastAt: now
     };
-    state.firstOrder = shuffle(state, seatNos);
+    state.firstOrder = shuffle(state, config.seats.map((s) => s.seatNo));
     return { state, events: [] };
   }
-  function seatOf(state, seatNo) {
-    return state.seats.find((s) => s.seatNo === seatNo);
-  }
+  var seatOf = (state, seatNo) => state.seats.find((s) => s.seatNo === seatNo);
+  var isBot = (state, seatNo) => seatOf(state, seatNo)?.isBot === true;
+  var fortified = (state) => fortifiedSet(state.boardSize, state.fortifications);
+  var heldCards = (state, seatNo) => state.cards.filter((c) => c.seatNo === seatNo && c.status === "held");
   function drawQuestion(state) {
     const unused = state.pool.filter((q2) => !state.used.includes(q2.id));
     if (unused.length === 0) throw new Error("question pool exhausted");
@@ -228,66 +261,166 @@ var Tarabee3Engine = (() => {
     state.used.push(q.id);
     return q;
   }
+  function ageFortifications(state, seatNo, at, events) {
+    for (const f of state.fortifications) if (f.ownerSeat === seatNo) f.ownerTurnsSince++;
+    for (const f of state.fortifications) if (f.ownerTurnsSince >= 3) events.push({ type: "fortificationEnded", at, id: f.id });
+    state.fortifications = state.fortifications.filter((f) => f.ownerTurnsSince < 3);
+  }
   function beginTurn(state, at, events) {
     const seatNo = orderOf(state, state.cycle)[state.turnIndex];
+    ageFortifications(state, seatNo, at, events);
     const q = drawQuestion(state);
     const round = {
       id: state.rounds.length + 1,
       cycle: state.cycle,
       type: "turn",
       seatNo,
+      chooser: seatNo,
       questionId: q.id,
       startedAt: at,
       deadline: at + state.times.answer
     };
     state.rounds.push(round);
-    if (seatOf(state, seatNo).isBot) {
-      const plan = planAnswer(state, at);
-      state.phase = { kind: "answering", deadline: round.deadline, botAt: Math.min(plan.botAt, round.deadline - 1), botCorrect: plan.correct };
+    if (isBot(state, seatNo)) {
+      const plan = planAnswer(state, at, round.deadline);
+      state.phase = { kind: "answering", deadline: round.deadline, botAt: plan.botAt, botCorrect: plan.correct };
     } else {
       state.phase = { kind: "answering", deadline: round.deadline };
     }
     events.push({ type: "turnStarted", at, roundId: round.id, seatNo });
+  }
+  function beginGroup(state, at, events) {
+    const q = drawQuestion(state);
+    const round = {
+      id: state.rounds.length + 1,
+      cycle: state.cycle,
+      type: "group",
+      questionId: q.id,
+      startedAt: at,
+      deadline: at + state.times.answer,
+      groupAnswers: []
+    };
+    state.rounds.push(round);
+    state.groupsDone.push(state.cycle);
+    const bots = state.seats.filter((s) => s.isBot).map((s) => {
+      const plan = planAnswer(state, at, round.deadline);
+      return { seatNo: s.seatNo, at: plan.botAt, correct: plan.correct };
+    });
+    state.phase = { kind: "group", deadline: round.deadline, bots };
+    events.push({ type: "groupStarted", at, roundId: round.id });
   }
   function startDisplay(state, at) {
     const round = currentRound(state);
     round.displayUntil = at + state.times.display;
     state.phase = { kind: "display", until: round.displayUntil };
   }
-  function isCorrect(q, choice) {
-    return q.type === "mcq" ? choice === q.correct : choice === q.correct;
+  function grantChoice(state, chooser, at) {
+    const round = currentRound(state);
+    round.chooser = chooser;
+    const deadline = at + state.times.choose;
+    state.phase = isBot(state, chooser) ? { kind: "choosing", deadline, botAt: planChoose(state, at, deadline) } : { kind: "choosing", deadline };
   }
+  var isCorrect = (q, choice) => choice === q.correct;
   function validChoice(q, choice) {
     return q.type === "mcq" ? Number.isInteger(choice) && choice >= 1 && choice <= 4 : typeof choice === "boolean";
   }
   function doAnswer(state, choice, at, events) {
     const round = currentRound(state);
-    const correct = isCorrect(questionOf(state, round.questionId), choice);
+    const correct = round.anyAnswer === true || isCorrect(questionOf(state, round.questionId), choice);
     round.answer = choice;
     round.answeredAt = at;
     round.result = correct ? "correct" : "wrong";
     events.push({ type: "answered", at, roundId: round.id, seatNo: round.seatNo, correct });
-    if (!correct) {
-      startDisplay(state, at);
-      return;
-    }
-    const deadline = at + state.times.choose;
-    state.phase = seatOf(state, round.seatNo).isBot ? { kind: "choosing", deadline, botAt: Math.min(planChoose(state, at), deadline - 1) } : { kind: "choosing", deadline };
+    if (correct) grantChoice(state, round.seatNo, at);
+    else startDisplay(state, at);
   }
-  function doChoose(state, row, col, at, events) {
+  function groupAnswer(state, seatNo, choice, at, events) {
     const round = currentRound(state);
-    const changed = applyCross(state.board, state.boardSize, round.seatNo, row, col);
-    round.choice = { row, col };
-    events.push({ type: "chose", at, roundId: round.id, seatNo: round.seatNo, row, col, changed });
+    round.groupAnswers.push({ seatNo, choice, at, correct: isCorrect(questionOf(state, round.questionId), choice) });
+    events.push({ type: "groupAnswered", at, roundId: round.id, seatNo });
+    if (round.groupAnswers.length === state.size) endGroup(state, at, events);
+  }
+  function endGroup(state, at, events) {
+    const round = currentRound(state);
+    const winner = round.groupAnswers.filter((a) => a.correct).sort((a, b) => a.at - b.at)[0];
+    round.result = winner ? "correct" : "noWinner";
+    round.answeredAt = at;
+    if (winner) round.winnerSeat = winner.seatNo;
+    events.push({ type: "groupEnded", at, roundId: round.id, winnerSeat: winner?.seatNo ?? null });
+    if (winner) grantChoice(state, winner.seatNo, at);
+    else startDisplay(state, at);
+  }
+  function openBurnWindows(state, attacker, changes, at, then, events) {
+    const lost = /* @__PURE__ */ new Map();
+    for (const c of changes) {
+      if (c.from === 0 || c.from === attacker) continue;
+      if (!heldCards(state, c.from).some((card) => card.type === "burn")) continue;
+      const cells = lost.get(c.from) ?? [];
+      cells.push({ row: Math.floor(c.index / state.boardSize), col: c.index % state.boardSize });
+      lost.set(c.from, cells);
+    }
+    if (lost.size === 0) return false;
+    const windows = [...lost.entries()].map(([seatNo, cells]) => ({ seatNo, cells }));
+    state.phase = { kind: "burn", until: at + state.times.burn, windows, then };
+    events.push({ type: "burnWindows", at, seats: windows.map((w) => w.seatNo) });
+    return true;
+  }
+  function finishBurn(state, at) {
+    if (state.phase.kind !== "burn") return;
+    const then = state.phase.then;
+    if (then.kind === "answering") {
+      const round = currentRound(state);
+      round.deadline = at + then.remaining;
+      state.phase = { kind: "answering", deadline: round.deadline };
+    } else {
+      startDisplay(state, at);
+    }
+  }
+  function doSquare(state, centers, at, events) {
+    const round = currentRound(state);
+    const chooser = round.chooser;
+    const forts = fortified(state);
+    const before = [...state.board];
+    for (const c of centers) applyCross(state.board, state.boardSize, chooser, c.row, c.col, forts);
+    const changes = [];
+    state.board.forEach((owner, i) => {
+      if (owner !== before[i]) changes.push({ index: i, from: before[i] });
+    });
+    round.choice = "square";
+    round.centers = centers;
+    events.push({ type: "chose", at, roundId: round.id, seatNo: chooser, centers, changed: changes.length });
+    if (!openBurnWindows(state, chooser, changes, at, { kind: "display" }, events)) startDisplay(state, at);
+  }
+  function doBox(state, at, events) {
+    const round = currentRound(state);
+    const seatNo = round.chooser;
+    state.boxes[String(seatNo)] = (state.boxes[String(seatNo)] ?? 0) - 1;
+    const type = CARD_TYPES[int(state, 0, CARD_TYPES.length - 1)];
+    const card = {
+      id: state.cards.length + 1,
+      seatNo,
+      type,
+      status: "held",
+      gainedRound: round.id,
+      ...type === "clear_squares" ? { clearCount: int(state, 1, 2) } : {}
+    };
+    state.cards.push(card);
+    round.choice = "box";
+    round.boxCard = card.id;
+    events.push({ type: "boxOpened", at, roundId: round.id, seatNo, card: type, ...card.clearCount ? { clearCount: card.clearCount } : {} });
     startDisplay(state, at);
   }
   function afterDisplay(state, at, events) {
     if (isFull(state.board)) return end(state, at, "boardFull", events);
-    state.turnIndex++;
-    if (state.turnIndex >= state.size) {
-      state.turnIndex = 0;
-      state.cycle++;
+    if (currentRound(state).type === "turn") {
+      state.turnIndex++;
+      if (state.turnIndex < state.size) return beginTurn(state, at, events);
+      if (state.groupEnabled && state.cycle % 2 === 0 && !state.groupsDone.includes(state.cycle)) {
+        return beginGroup(state, at, events);
+      }
     }
+    state.cycle++;
+    state.turnIndex = 0;
     if (state.cycle > state.cyclesTotal) return end(state, at, "turnsDone", events);
     beginTurn(state, at, events);
   }
@@ -308,30 +441,45 @@ var Tarabee3Engine = (() => {
         if (now < p.until) break;
         beginTurn(state, p.until, events);
       } else if (p.kind === "answering") {
+        const round = currentRound(state);
         if (p.botAt !== void 0 && now >= p.botAt) {
-          const round = currentRound(state);
           doAnswer(state, botChoice(state, questionOf(state, round.questionId), p.botCorrect), p.botAt, events);
         } else if (now >= p.deadline) {
-          const round = currentRound(state);
-          round.result = "timeout";
-          events.push({ type: "timedOut", at: p.deadline, roundId: round.id, seatNo: round.seatNo });
-          startDisplay(state, p.deadline);
+          if (round.anyAnswer) {
+            const q = questionOf(state, round.questionId);
+            doAnswer(state, q.type === "mcq" ? int(state, 1, 4) : int(state, 0, 1) === 1, p.deadline, events);
+          } else {
+            round.result = "timeout";
+            events.push({ type: "timedOut", at: p.deadline, roundId: round.id, seatNo: round.seatNo });
+            startDisplay(state, p.deadline);
+          }
+        } else break;
+      } else if (p.kind === "group") {
+        const round = currentRound(state);
+        const answered = new Set(round.groupAnswers.map((a) => a.seatNo));
+        const due = p.bots.filter((b) => !answered.has(b.seatNo) && b.at <= now).sort((a, b) => a.at - b.at)[0];
+        if (due && due.at < p.deadline) {
+          groupAnswer(state, due.seatNo, botChoice(state, questionOf(state, round.questionId), due.correct), due.at, events);
+        } else if (now >= p.deadline) {
+          endGroup(state, p.deadline, events);
         } else break;
       } else if (p.kind === "choosing") {
+        const round = currentRound(state);
         if (p.botAt !== void 0 && now >= p.botAt) {
-          const round = currentRound(state);
-          const square = bestSquare(state, round.seatNo);
-          if (square) doChoose(state, square.row, square.col, p.botAt, events);
+          const square = bestSquare(state, round.chooser);
+          if (square) doSquare(state, [square], p.botAt, events);
           else {
             round.choiceDropped = true;
             startDisplay(state, p.botAt);
           }
         } else if (now >= p.deadline) {
-          const round = currentRound(state);
           round.choiceDropped = true;
-          events.push({ type: "choiceDropped", at: p.deadline, roundId: round.id, seatNo: round.seatNo });
+          events.push({ type: "choiceDropped", at: p.deadline, roundId: round.id, seatNo: round.chooser });
           startDisplay(state, p.deadline);
         } else break;
+      } else if (p.kind === "burn") {
+        if (now < p.until) break;
+        finishBurn(state, p.until);
       } else if (p.kind === "display") {
         if (now < p.until) break;
         afterDisplay(state, p.until, events);
@@ -339,30 +487,141 @@ var Tarabee3Engine = (() => {
     }
     return { state, events };
   }
+  var rejectTime = (input, at) => !validTime(at) || at < input.lastAt ? { state: clone(input), events: [], rejected: "bad_time" } : null;
   function answer(input, seatNo, choice, at) {
-    if (!validTime(at) || at < input.lastAt) return { state: clone(input), events: [], rejected: "bad_time" };
+    const bad = rejectTime(input, at);
+    if (bad) return bad;
     const { state, events } = tick(input, at);
     const round = currentRound(state);
-    if (state.phase.kind !== "answering" || !round) {
+    const p = state.phase;
+    if (p.kind === "group" && round?.type === "group") {
+      if (!seatOf(state, seatNo) || isBot(state, seatNo)) return { state, events, rejected: "not_your_turn" };
+      if (round.groupAnswers.some((a) => a.seatNo === seatNo)) return { state, events, rejected: "already_answered" };
+      if (!validChoice(questionOf(state, round.questionId), choice)) return { state, events, rejected: "bad_choice" };
+      groupAnswer(state, seatNo, choice, at, events);
+      return { state, events };
+    }
+    if (p.kind !== "answering" || !round) {
       const mine = round?.seatNo === seatNo;
-      const rejected = mine && round?.answeredAt !== void 0 ? "already_answered" : mine && round?.result === "timeout" ? "too_late" : "not_now";
+      const rejected = mine && round?.answer !== void 0 ? "already_answered" : mine && round?.result === "timeout" ? "too_late" : "not_now";
       return { state, events, rejected };
     }
-    if (round.seatNo !== seatNo) return { state, events, rejected: "not_your_turn" };
-    if (seatOf(state, seatNo).isBot) return { state, events, rejected: "not_your_turn" };
-    const q = questionOf(state, round.questionId);
-    if (!validChoice(q, choice)) return { state, events, rejected: "bad_choice" };
+    if (round.seatNo !== seatNo || isBot(state, seatNo)) return { state, events, rejected: "not_your_turn" };
+    if (!validChoice(questionOf(state, round.questionId), choice)) return { state, events, rejected: "bad_choice" };
     doAnswer(state, choice, at, events);
     return { state, events };
   }
-  function choose(input, seatNo, row, col, at) {
-    if (!validTime(at) || at < input.lastAt) return { state: clone(input), events: [], rejected: "bad_time" };
+  function choose(input, seatNo, pick2, at) {
+    const bad = rejectTime(input, at);
+    if (bad) return bad;
     const { state, events } = tick(input, at);
     const round = currentRound(state);
     if (state.phase.kind !== "choosing" || !round) return { state, events, rejected: "not_now" };
-    if (round.seatNo !== seatNo || seatOf(state, seatNo).isBot) return { state, events, rejected: "not_your_turn" };
-    if (!canCenter(state.board, state.boardSize, row, col)) return { state, events, rejected: "bad_square" };
-    doChoose(state, row, col, at, events);
+    if (round.chooser !== seatNo || isBot(state, seatNo)) return { state, events, rejected: "not_your_turn" };
+    if (pick2?.kind === "box") {
+      if ((state.boxes[String(seatNo)] ?? 0) <= 0) return { state, events, rejected: "no_box" };
+      doBox(state, at, events);
+      return { state, events };
+    }
+    const centers = pick2?.kind === "square" && Array.isArray(pick2.centers) ? pick2.centers : [];
+    const needed = round.boardCard === "double_cross" ? 2 : 1;
+    const forts = fortified(state);
+    const anywhere = round.boardCard === "place_anywhere";
+    const valid = centers.length === needed && centers.every((c) => canCenter(state.board, state.boardSize, c?.row, c?.col, forts, anywhere)) && new Set(centers.map((c) => `${c.row},${c.col}`)).size === centers.length;
+    if (!valid) return { state, events, rejected: "bad_square" };
+    doSquare(state, centers.map((c) => ({ row: c.row, col: c.col })), at, events);
+    return { state, events };
+  }
+  function playCard(input, seatNo, cardId, target, at) {
+    const bad = rejectTime(input, at);
+    if (bad) return bad;
+    const { state, events } = tick(input, at);
+    const card = state.cards.find((c) => c.id === cardId && c.seatNo === seatNo && c.status === "held");
+    if (!card) return { state, events, rejected: "no_card" };
+    const round = currentRound(state);
+    const p = state.phase;
+    const reject = (r) => ({ state, events, rejected: r });
+    const questionWindow = p.kind === "answering" && round?.type === "turn" && round.seatNo === seatNo && round.answer === void 0;
+    const boardWindow = p.kind === "choosing" && round?.chooser === seatNo && !round.boardCard;
+    switch (card.type) {
+      case "burn":
+        return reject("card_not_now");
+      case "swap_question": {
+        if (!questionWindow || round.anyAnswer) return reject("card_not_now");
+        const next2 = drawQuestion(state);
+        round.swappedOut = [...round.swappedOut ?? [], round.questionId];
+        round.questionId = next2.id;
+        round.deadline = at + state.times.answer;
+        state.phase = { kind: "answering", deadline: round.deadline };
+        break;
+      }
+      case "any_answer":
+        if (!questionWindow) return reject("card_not_now");
+        round.anyAnswer = true;
+        break;
+      case "clear_squares": {
+        if (!questionWindow) return reject("card_not_now");
+        const cells = Array.isArray(target?.cells) ? target.cells : [];
+        const forts = fortified(state);
+        const ok = cells.length === card.clearCount && new Set(cells.map((c) => `${c?.row},${c?.col}`)).size === cells.length && cells.every((c) => inBoard(state.boardSize, c?.row, c?.col) && state.board[index(state.boardSize, c.row, c.col)] !== 0 && !forts.has(index(state.boardSize, c.row, c.col)));
+        if (!ok) return reject("bad_target");
+        const changes = cells.map((c) => {
+          const i = index(state.boardSize, c.row, c.col);
+          const from = state.board[i];
+          state.board[i] = 0;
+          return { index: i, from };
+        });
+        spend(state, card, round, at, events);
+        openBurnWindows(state, seatNo, changes, at, { kind: "answering", remaining: round.deadline - at }, events);
+        return { state, events };
+      }
+      case "fortify": {
+        if (!questionWindow) return reject("card_not_now");
+        const c = target?.center;
+        if (!c || !inBoard(state.boardSize, c.row, c.col)) return reject("bad_target");
+        state.fortsCreated++;
+        state.fortifications.push({
+          id: state.fortsCreated,
+          center: { row: c.row, col: c.col },
+          ownerSeat: seatNo,
+          createdRound: round.id,
+          ownerTurnsSince: 0
+        });
+        break;
+      }
+      case "double_cross":
+      case "place_anywhere":
+        if (!boardWindow) return reject("card_not_now");
+        round.boardCard = card.type;
+        break;
+    }
+    spend(state, card, round, at, events);
+    return { state, events };
+  }
+  function spend(state, card, round, at, events) {
+    card.status = "spent";
+    round.played = [...round.played ?? [], card.type];
+    events.push({ type: "cardPlayed", at, roundId: round.id, seatNo: card.seatNo, card: card.type });
+  }
+  function decideBurn(input, seatNo, burn, at) {
+    const bad = rejectTime(input, at);
+    if (bad) return bad;
+    const { state, events } = tick(input, at);
+    const p = state.phase;
+    if (p.kind !== "burn") return { state, events, rejected: "not_now" };
+    const w = p.windows.find((x) => x.seatNo === seatNo && !x.decided);
+    if (!w) return { state, events, rejected: "not_your_turn" };
+    if (burn === true) {
+      const card = heldCards(state, seatNo).find((c) => c.type === "burn");
+      if (!card) return { state, events, rejected: "no_card" };
+      for (const c of w.cells) state.board[index(state.boardSize, c.row, c.col)] = seatNo;
+      card.status = "spent";
+      events.push({ type: "burned", at, seatNo, restored: w.cells.length });
+      w.decided = "burn";
+    } else {
+      w.decided = "skip";
+    }
+    if (p.windows.every((x) => x.decided)) finishBurn(state, at);
     return { state, events };
   }
 
@@ -391,18 +650,20 @@ var Tarabee3Engine = (() => {
   }
 
   // server/engine/view.ts
-  function view(state) {
+  function view(state, forSeat) {
     const p = state.phase;
-    const phase = p.kind === "answering" ? { kind: "answering", deadline: p.deadline } : p.kind === "choosing" ? { kind: "choosing", deadline: p.deadline } : p;
+    const phase = p.kind === "answering" ? { kind: "answering", deadline: p.deadline } : p.kind === "group" ? { kind: "group", deadline: p.deadline } : p.kind === "choosing" ? { kind: "choosing", deadline: p.deadline } : p.kind === "burn" ? { kind: "burn", until: p.until, windows: p.windows.map((w) => ({ ...w, cells: [...w.cells] })) } : p;
     const r = currentRound(state);
     let round;
     if (r) {
       const q = questionOf(state, r.questionId);
       const over = r.result !== void 0;
+      const box = r.boxCard !== void 0 ? state.cards.find((c) => c.id === r.boxCard) : void 0;
       round = {
         id: r.id,
-        seatNo: r.seatNo,
+        type: r.type,
         deadline: r.deadline,
+        ...r.seatNo !== void 0 ? { seatNo: r.seatNo } : {},
         question: {
           id: q.id,
           type: q.type,
@@ -412,19 +673,49 @@ var Tarabee3Engine = (() => {
         },
         ...r.answer !== void 0 ? { answer: r.answer } : {},
         ...r.result ? { result: r.result } : {},
+        ...r.chooser !== void 0 && over ? { chooser: r.chooser } : {},
         ...r.choice ? { choice: r.choice } : {},
-        ...r.choiceDropped ? { choiceDropped: true } : {}
+        ...r.centers ? { centers: r.centers.map((c) => ({ ...c })) } : {},
+        ...r.choiceDropped ? { choiceDropped: true } : {},
+        ...box ? { boxCard: { type: box.type, ...box.clearCount ? { clearCount: box.clearCount } : {} } } : {},
+        ...r.played ? { played: [...r.played] } : {},
+        ...r.anyAnswer ? { anyAnswer: true } : {},
+        ...r.boardCard ? { boardCard: r.boardCard } : {}
       };
+      if (r.type === "group") {
+        if (over) {
+          round.groupAnswers = r.groupAnswers.map((a) => ({ seatNo: a.seatNo, choice: a.choice, correct: a.correct }));
+          if (r.winnerSeat !== void 0) round.winnerSeat = r.winnerSeat;
+        } else {
+          round.answeredSeats = r.groupAnswers.map((a) => a.seatNo);
+          const mine = r.groupAnswers.find((a) => a.seatNo === forSeat);
+          if (mine) round.myAnswer = mine.choice;
+        }
+      }
     }
     return {
       size: state.size,
       boardSize: state.boardSize,
       cycle: state.cycle,
       cyclesTotal: state.cyclesTotal,
+      groupEnabled: state.groupEnabled,
       times: { ...state.times },
       board: [...state.board],
-      seats: state.seats.map((s) => ({ ...s, persona: { ...s.persona }, squares: squaresOf(state.board, s.seatNo) })),
+      seats: state.seats.map((s) => ({
+        ...s,
+        persona: { ...s.persona },
+        squares: squaresOf(state.board, s.seatNo),
+        boxesLeft: state.boxes[String(s.seatNo)] ?? 0,
+        cards: heldCards(state, s.seatNo).map((c) => ({ id: c.id, type: c.type, ...c.clearCount ? { clearCount: c.clearCount } : {} }))
+      })),
       order: orderOf(state, Math.min(state.cycle, state.cyclesTotal)),
+      fortifications: state.fortifications.map((f) => ({
+        id: f.id,
+        ownerSeat: f.ownerSeat,
+        center: { ...f.center },
+        cells: crossCells(state.boardSize, f.center.row, f.center.col),
+        turnsLeft: 3 - f.ownerTurnsSince
+      })),
       phase,
       ...round ? { round } : {},
       ...p.kind === "ended" ? { ranking: ranking(state.board, state.seats.map((s) => s.seatNo)) } : {}
@@ -432,13 +723,20 @@ var Tarabee3Engine = (() => {
   }
 
   // server/engine/index.ts
-  var out = (r) => JSON.stringify({ state: JSON.stringify(r.state), view: view(r.state), events: r.events, ...r.rejected ? { rejected: r.rejected } : {} });
+  var out = (r, viewer) => JSON.stringify({
+    state: JSON.stringify(r.state),
+    view: view(r.state, viewer),
+    events: r.events,
+    ...r.rejected ? { rejected: r.rejected } : {}
+  });
   var bridge = {
-    createTraining: (setupJson, now) => out(createTraining(JSON.parse(setupJson), now)),
-    tick: (stateJson, now) => out(tick(JSON.parse(stateJson), now)),
-    answer: (stateJson, seatNo, choiceJson, now) => out(answer(JSON.parse(stateJson), seatNo, JSON.parse(choiceJson), now)),
-    choose: (stateJson, seatNo, row, col, now) => out(choose(JSON.parse(stateJson), seatNo, row, col, now)),
-    // قواعد يحتاجها العرض قبل الحكم، من المحرّك نفسه لا مكرّرة في سويفت (مراجعة M-04، المشكلة ٤)
+    createTraining: (setupJson, now, viewer) => out(createTraining(JSON.parse(setupJson), now), viewer),
+    tick: (stateJson, now, viewer) => out(tick(JSON.parse(stateJson), now), viewer),
+    answer: (stateJson, seatNo, choiceJson, now) => out(answer(JSON.parse(stateJson), seatNo, JSON.parse(choiceJson), now), seatNo),
+    choose: (stateJson, seatNo, pickJson, now) => out(choose(JSON.parse(stateJson), seatNo, JSON.parse(pickJson), now), seatNo),
+    playCard: (stateJson, seatNo, cardId, targetJson, now) => out(playCard(JSON.parse(stateJson), seatNo, cardId, JSON.parse(targetJson), now), seatNo),
+    decideBurn: (stateJson, seatNo, burn, now) => out(decideBurn(JSON.parse(stateJson), seatNo, burn, now), seatNo),
+    // قواعد يحتاجها العرض قبل الحكم، من المحرّك نفسه لا مكرّرة في سويفت
     crossCells: (boardSize, row, col) => JSON.stringify(crossCells(boardSize, row, col)),
     suggestedBoard: (size) => suggestedBoard(size)
   };

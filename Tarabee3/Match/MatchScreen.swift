@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// شاشات المباراة (S-09 إلى S-11، والعرض، وS-14) تملأ الشاشة بلا زرّ رجوع، والمحرّك ينقل بينها (05-ui §٨).
+/// شاشات المباراة (S-09 إلى S-14) تملأ الشاشة بلا زرّ رجوع، والمحرّك ينقل بينها (05-ui §٨).
 /// في التدريب يحكمها المحرّك على الجهاز؛ وأون لاين (M-06) يحكمها الكائن والشاشات نفسها.
 struct MatchScreen: View {
     let session: TrainingSession
@@ -9,9 +9,12 @@ struct MatchScreen: View {
 
     @State private var tab = Tab.board
     @State private var confirmExit = false
+    @State private var showCards = false
+    @State private var choiceMode = ChoiceMode.square
     @Environment(\.colorScheme) private var scheme
 
     enum Tab: Hashable { case board, question }
+    enum ChoiceMode: Hashable { case square, box }
 
     var body: some View {
         let palette = Palette.of(scheme)
@@ -21,7 +24,12 @@ struct MatchScreen: View {
                     ResultScreen(view: view, onPlayAgain: onPlayAgain, onHome: onExit)
                 } else {
                     TimelineView(.periodic(from: .now, by: 0.2)) { _ in
-                        playing(view, palette)
+                        if let window = session.myBurnWindow, let until = view.phase.until {
+                            // S-13 · نافذة الحرق تملأ الشاشة
+                            BurnScreen(session: session, window: window, until: until)
+                        } else {
+                            playing(view, palette)
+                        }
                     }
                 }
             } else if session.failed {
@@ -36,6 +44,10 @@ struct MatchScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .appBackground()
+        .sheet(isPresented: $showCards) {
+            CardsSheet(session: session) { showCards = false }
+                .presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: $confirmExit) {
             VStack(alignment: .leading, spacing: Space.s(4)) {
                 Text(Copy.Match.exitTitle).font(.app(.h2, .bold)).foregroundStyle(palette.text)
@@ -48,21 +60,24 @@ struct MatchScreen: View {
             .appBackground()
             .presentationDetents([.medium])
         }
+        .onChange(of: session.view?.round?.id) { choiceMode = .square }
+        .onChange(of: session.view?.round?.boardCard) { if session.view?.round?.boardCard != nil { choiceMode = .square } }
     }
 
     @ViewBuilder
     private func playing(_ view: MatchView, _ palette: Palette) -> some View {
         let now = session.now
-        let mine = session.isMyTurn
         let kind = view.phase.kind
         VStack(spacing: Space.s(3)) {
             header(view, palette)
 
             if kind == "countdown" {
                 CountdownView(until: view.phase.until ?? now, now: now)
-            } else if kind == "answering" && mine, let round = view.round {
+            } else if session.targeting != nil {
+                targetingView(view, palette)
+            } else if kind == "answering" && session.isMyTurn, let round = view.round {
                 // S-09 · دورك
-                statusLine(Copy.Match.yourTurn, palette)
+                statusLine(round.anyAnswer == true ? Copy.Cards.anyActive : Copy.Match.yourTurn, palette)
                 TimerView(deadline: round.deadline, total: view.times.answer, now: now)
                 ScrollView {
                     VStack(spacing: Space.s(3)) {
@@ -71,16 +86,27 @@ struct MatchScreen: View {
                                       enabled: session.sentAnswer == nil) { session.answer($0) }
                     }
                 }
-            } else if kind == "choosing" && mine, let deadline = view.phase.deadline {
-                // S-11 · اختيار المربع
-                statusLine(Copy.Match.chooseSquare, palette)
-                TimerView(deadline: deadline, total: view.times.choose, now: now)
-                BoardView(view: view, preview: session.preview, previewCells: session.previewCells,
-                          previewSeat: TrainingSession.mySeat) { session.select($0) }
+                CardsButton(session: session, showCards: $showCards)
+            } else if kind == "group", let round = view.round {
+                // S-12 · جولة جماعية: من أجاب يُعلَّم بلا كشف صوابه (R-26)
+                statusLine(round.myAnswer == nil ? Copy.Group.title : Copy.Group.waiting, palette)
+                Text(Copy.Group.line).font(.app(.small)).foregroundStyle(palette.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                TimerView(deadline: round.deadline, total: view.times.answer, now: now)
+                ScrollView {
+                    VStack(spacing: Space.s(3)) {
+                        QuestionCard(question: round.question)
+                        AnswerOptions(question: round.question, selected: round.myAnswer,
+                                      enabled: session.canAnswerGroup) { session.answer($0) }
+                    }
+                }
+            } else if session.isChooser, let deadline = view.phase.deadline {
+                // S-11 · اختيار الأحقية: مربع أم صندوق
+                chooseView(view, deadline: deadline, palette)
+            } else if kind == "burn" {
+                statusLine(burnWaiting(view), palette)
+                BoardView(view: view)
                 Spacer(minLength: 0)
-                Button(Copy.Match.commit) { session.commit() }
-                    .appButton(.primary)
-                    .disabled(session.preview == nil)
             } else {
                 // S-10 · دور غيرك، وعرض اللوح بعد كل دور
                 statusLine(otherStatus(view), palette)
@@ -94,7 +120,7 @@ struct MatchScreen: View {
                     ScrollView {
                         VStack(spacing: Space.s(3)) {
                             QuestionCard(question: round.question)
-                            AnswerOptions(question: round.question, selected: round.answer, enabled: false) { _ in }
+                            AnswerOptions(question: round.question, selected: round.answer ?? round.myAnswer, enabled: false) { _ in }
                         }
                     }
                 }
@@ -105,10 +131,62 @@ struct MatchScreen: View {
         .padding(.vertical, Space.s(2))
     }
 
+    /// S-11: خياران متجاوران، والصندوق معطّل إن نفدت والعدد ظاهر (05-ui §٦). وبعد كرت لوح يبقى المربع وحده.
+    @ViewBuilder
+    private func chooseView(_ view: MatchView, deadline: Double, _ palette: Palette) -> some View {
+        let boxes = session.me?.boxesLeft ?? 0
+        let boardCard = view.round?.boardCard
+        let note = boardCard == .doubleCross ? Copy.Cards.doubleActive
+            : boardCard == .placeAnywhere ? Copy.Cards.anywhereActive : Copy.Match.chooseSquare
+        statusLine(choiceMode == .box ? Copy.Choice.openBox : note, palette)
+        TimerView(deadline: deadline, total: view.times.choose, now: session.now)
+        SplitPicker(options: [(ChoiceMode.square, Copy.Choice.square), (ChoiceMode.box, Copy.Choice.box(boxes))], selection: $choiceMode)
+            .disabled(boardCard != nil)
+        if choiceMode == .box {
+            Spacer(minLength: 0)
+            Image("icon-package").resizable().frame(width: 64, height: 64).foregroundStyle(palette.text)
+                .accessibilityHidden(true)
+            if boxes == 0 { Text(Copy.Choice.boxesGone).font(.app(.small)).foregroundStyle(palette.textMuted) }
+            Spacer(minLength: 0)
+            Button(Copy.Choice.openBox) { session.openBox() }.appButton(.primary).disabled(boxes == 0)
+        } else {
+            BoardView(view: view, preview: session.preview, previewCells: session.previewCells,
+                      previewSeat: TrainingSession.mySeat) { session.select($0) }
+            Spacer(minLength: 0)
+            HStack(spacing: Space.s(2)) {
+                CardsButton(session: session, showCards: $showCards)
+                Button(Copy.Match.commit) { session.commit() }.appButton(.primary).disabled(!session.canCommit)
+            }
+        }
+    }
+
+    /// استهداف التفريغ أو التحصين: اللوح، ثم «اعتمد» أو «إلغاء». والمؤقّت يعمل.
+    @ViewBuilder
+    private func targetingView(_ view: MatchView, _ palette: Palette) -> some View {
+        statusLine(isClearTargeting ? Copy.Cards.clearTarget : Copy.Cards.fortifyTarget, palette)
+        if let deadline = view.phase.deadline {
+            TimerView(deadline: deadline, total: view.times.answer, now: session.now)
+        }
+        BoardView(view: view, targetCells: session.targetCells) { session.select($0) }
+        Spacer(minLength: 0)
+        HStack(spacing: Space.s(2)) {
+            Button(Copy.Cards.cancel) { session.cancelTarget() }.appButton(.secondary)
+            Button(Copy.Cards.confirm) { session.confirmTarget() }.appButton(.primary).disabled(!session.targetReady)
+        }
+    }
+
+    private var isClearTargeting: Bool {
+        if case .clear = session.targeting { return true }
+        return false
+    }
+
     private func header(_ view: MatchView, _ palette: Palette) -> some View {
-        HStack(alignment: .top, spacing: Space.s(1)) {
+        let answered = Set(view.round?.answeredSeats ?? [])
+        let activeSeat = view.phase.kind == "choosing" ? view.round?.chooser : view.round?.seatNo
+        return HStack(alignment: .top, spacing: Space.s(1)) {
             ForEach(view.order.compactMap { view.seat($0) }) { seat in
-                SeatBadge(seat: seat, active: view.round?.seatNo == seat.seatNo && view.phase.kind != "countdown")
+                SeatBadge(seat: seat, active: activeSeat == seat.seatNo && view.phase.kind != "countdown",
+                          answered: view.phase.kind == "group" && answered.contains(seat.seatNo))
             }
             Button { confirmExit = true } label: {
                 Image("icon-x").resizable().frame(width: IconSize.small, height: IconSize.small)
@@ -124,19 +202,45 @@ struct MatchScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private func name(_ view: MatchView, _ seat: Int?) -> String {
+        seat.flatMap { view.seat($0) }.map { "\u{2068}\($0.displayName)\u{2069}" } ?? ""
+    }
+
+    private func burnWaiting(_ view: MatchView) -> String {
+        let names = (view.phase.windows ?? []).filter { $0.decided == nil }.map { name(view, $0.seatNo) }
+        return Copy.Burn.waiting(names.joined(separator: "، "))
+    }
+
     private func otherStatus(_ view: MatchView) -> String {
         guard let round = view.round else { return "" }
-        let name = view.seat(round.seatNo).map { "\u{2068}\($0.displayName)\u{2069}" } ?? ""
-        let me = round.seatNo == TrainingSession.mySeat
-        if view.phase.kind == "display" {
-            if round.choiceDropped == true { return me ? Copy.Match.droppedMine : Copy.Match.dropped(name) }
-            switch round.result {
-            case "correct": return me ? Copy.Match.committedMine : Copy.Match.correct(name)
-            case "wrong": return me ? Copy.Match.wrongMine : Copy.Match.wrong(name)
-            default: return me ? Copy.Match.timeoutMine : Copy.Match.timeout(name)
+        let kind = view.phase.kind
+        // الصندوق: صاحبه يرى كرته، والباقون يرون أنه فتح صندوقاً (الكرت معلن على شارته)
+        if kind == "display", round.choice == "box", let card = round.boxCard, let chooser = round.chooser {
+            return chooser == TrainingSession.mySeat ? Copy.Choice.gotCard(Copy.Cards.name(card.type)) : Copy.Choice.opened(name(view, chooser))
+        }
+        if round.isGroup {
+            switch kind {
+            case "display":
+                if round.result == "noWinner" { return Copy.Group.noWinner }
+                if round.choiceDropped == true {
+                    return round.winnerSeat == TrainingSession.mySeat ? Copy.Match.droppedMine : Copy.Match.dropped(name(view, round.winnerSeat))
+                }
+                return Copy.Group.winner(name(view, round.winnerSeat))
+            case "choosing": return Copy.Match.choosing(name(view, round.chooser))
+            default: return Copy.Group.title
             }
         }
-        return view.phase.kind == "choosing" ? Copy.Match.choosing(name) : Copy.Match.turnOf(name)
+        let who = name(view, round.seatNo)
+        let me = round.seatNo == TrainingSession.mySeat
+        if kind == "display" {
+            if round.choiceDropped == true { return me ? Copy.Match.droppedMine : Copy.Match.dropped(who) }
+            switch round.result {
+            case "correct": return me ? Copy.Match.committedMine : Copy.Match.correct(who)
+            case "wrong": return me ? Copy.Match.wrongMine : Copy.Match.wrong(who)
+            default: return me ? Copy.Match.timeoutMine : Copy.Match.timeout(who)
+            }
+        }
+        return kind == "choosing" ? Copy.Match.choosing(who) : Copy.Match.turnOf(who)
     }
 }
 
