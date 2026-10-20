@@ -14,3 +14,4 @@ DerivedData/
 *.p12
 *.mobileprovision
 *service-account*.json
+*firebase-adminsdk*.json
