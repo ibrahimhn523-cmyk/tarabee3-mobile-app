@@ -56,10 +56,15 @@ final class ProfileStore {
     func deleteAccount() async throws(ProfileError) {
         guard let backend else { throw .notConfigured }
         deleting = true
-        defer { deleting = false }
-        try await backend.deleteAccount()
+        do {
+            try await backend.deleteAccount()
+        } catch {
+            deleting = false
+            throw error
+        }
+        // يُرفع قبل البدء من جديد: المتابعة الجديدة تتجاهل ما يصل أثناء الحذف وحده.
+        deleting = false
         player = nil
-        phase = .loading
         await start()
     }
 }
