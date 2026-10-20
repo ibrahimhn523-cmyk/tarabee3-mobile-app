@@ -31,6 +31,19 @@ jobs:
           echo "التوقيع والرفع: $HAS_SIGNING"
           echo "ARCHIVE_PATH=$RUNNER_TEMP/Tarabee3.xcarchive" >> "$GITHUB_ENV"
 
+      # ملف إعداد فايربيس لا يدخل المستودع العام (القرار الرابع في M-02): يُكتب من خزنة قِت هب وقت البناء.
+      # وبدونه يُبنى التطبيق، ويعرض «غير مهيّأ» عند فتحه.
+      - name: Write Firebase config
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > Tarabee3/GoogleService-Info.plist
+            echo "ملف إعداد فايربيس: موجود"
+          else
+            echo "ملف إعداد فايربيس: غائب"
+          fi
+
       - name: Generate project (XcodeGen)
         env:
           XCODEGEN_VERSION: "2.46.0"
@@ -117,9 +130,9 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
-      - name: Remove signing key
+      - name: Remove signing key and Firebase config
         if: always()
-        run: rm -rf "$RUNNER_TEMP/asc"
+        run: rm -rf "$RUNNER_TEMP/asc" Tarabee3/GoogleService-Info.plist
 
       - name: Build number and step durations
         if: always()

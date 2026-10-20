@@ -10,12 +10,23 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
 
+packages:
+  # Firebase Apple SDK 13 (04-tech): الهوية وقراءة Firestore. مقفل على إصدار بعينه.
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    exactVersion: 13.0.1
+
 targets:
   Tarabee3:
     type: application
     platform: iOS
     sources:
-      - Tarabee3
+      - path: Tarabee3
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
     info:
       path: Tarabee3/Info.plist
       properties:
@@ -28,6 +39,11 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
+        # ريديكس برو متغيّر الوزن، يُشحن مع التطبيق (05-ui §٢)
+        UIAppFonts:
+          - ReadexPro-Variable.ttf
+        # خادم ترابيع — عنوان عام، ليس سرّاً
+        ServerBaseURL: https://tarabee3-mobile.tarabee3-worker.workers.dev
     settings:
       base:
         # مؤقت حتى يصل معرّف الحزمة من الخطوة ب
@@ -40,10 +56,27 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
 
+  Tarabee3Tests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tarabee3Tests
+    dependencies:
+      - target: Tarabee3
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.tarabee3.tests
+
 schemes:
   Tarabee3:
     build:
       targets:
         Tarabee3: all
+        Tarabee3Tests: [test]
+    test:
+      targets:
+        - Tarabee3Tests
     archive:
       config: Release

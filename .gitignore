@@ -1,6 +1,8 @@
 # مشروع Xcode يُولَّد بـ XcodeGen على جهاز قِت هب
 *.xcodeproj
 Tarabee3/Info.plist
+# إعداد فايربيس: من خزنة قِت هب وقت البناء، لا يُدفع
+GoogleService-Info.plist
 build/
 DerivedData/
 
