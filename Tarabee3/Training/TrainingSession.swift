@@ -103,22 +103,10 @@ final class TrainingSession {
     var canAnswerGroup: Bool { phase == "group" && view?.round?.myAnswer == nil }
 
     /// هل يُلعب هذا الكرت الآن؟ ومع الرفض سببه (05-ui §٦ «الكرت»: ليس وقته: خافت مع السبب).
+    /// الحكم من المحرّك في العرض (blocked)، والتطبيق يترجمه نصّاً فقط (القاعدة ٥).
     func playability(_ card: CardView) -> (ok: Bool, reason: String?) {
-        guard let round = view?.round else { return (false, Copy.Cards.notNow) }
-        switch card.type.window {
-        case .reaction:
-            return (false, Copy.Cards.reactionOnly)
-        case .question:
-            guard phase == "answering", isMyTurn, sentAnswer == nil, round.answer == nil else {
-                return (false, round.isGroup ? Copy.Cards.notInGroup : Copy.Cards.questionWindow)
-            }
-            if card.type == .swapQuestion && round.anyAnswer == true { return (false, Copy.Cards.swapLocked) }
-            return (true, nil)
-        case .board:
-            guard isChooser else { return (false, Copy.Cards.boardWindow) }
-            if round.boardCard != nil { return (false, Copy.Cards.oneBoardCard) }
-            return (true, nil)
-        }
+        guard let blocked = card.blocked else { return (targeting == nil, nil) }
+        return (false, Copy.Cards.blocked(blocked))
     }
 
     // MARK: - أفعال اللاعب
@@ -132,22 +120,22 @@ final class TrainingSession {
         run { try bridge.answer(state: state, seatNo: Self.mySeat, choice: choice, now: now) }
     }
 
-    /// الضغطة تعاين، والاعتماد زرّ مستقل (05-ui §١٦). بـ «صليبان» مركزان، وبـ «ضع في أي مربع» يجوز المملوك.
+    /// الضغطة تعاين، والاعتماد زرّ مستقل (05-ui §١٦). المحرّك يحكم أيّ مربع يجوز، وكم مركزاً (اثنان بـ «صليبان»).
     func select(_ square: Square) {
-        guard let view, let bridge else { return }
+        guard let view, let bridge, let state else { return }
         if let targeting { return target(square, targeting) }
-        guard isChooser, !view.fortified.contains(square) else { return }
-        let anywhere = view.round?.boardCard == .placeAnywhere
-        guard anywhere || view.owner(square) == 0 else { return }
-        if view.round?.boardCard == .doubleCross {
-            if let i = preview.firstIndex(of: square) { preview.remove(at: i) } else { preview = Array((preview + [square]).suffix(2)) }
+        guard isChooser, bridge.centerAllowed(state: state, square: square) else { return }
+        if let i = preview.firstIndex(of: square) {
+            if centersNeeded > 1 { preview.remove(at: i) }
         } else {
-            preview = [square]
+            preview = Array((preview + [square]).suffix(centersNeeded))
         }
         previewCells = Set(preview.flatMap { bridge.crossCells(boardSize: view.boardSize, center: $0) })
     }
 
-    var canCommit: Bool { isChooser && preview.count == (view?.round?.boardCard == .doubleCross ? 2 : 1) }
+    private var centersNeeded: Int { view?.round?.centersNeeded ?? 1 }
+    var canCommit: Bool { isChooser && preview.count == centersNeeded }
+    var canOpenBox: Bool { isChooser && view?.round?.boxAllowed == true }
 
     func commit() {
         guard let bridge, let state, canCommit else { return }
@@ -156,7 +144,7 @@ final class TrainingSession {
     }
 
     func openBox() {
-        guard let bridge, let state, isChooser, (me?.boxesLeft ?? 0) > 0 else { return }
+        guard let bridge, let state, canOpenBox else { return }
         Haptics.play(Tokens.Haptics.commit)
         run { try bridge.openBox(state: state, seatNo: Self.mySeat, now: now) }
     }
@@ -175,11 +163,11 @@ final class TrainingSession {
     }
 
     private func target(_ square: Square, _ mode: Targeting) {
-        guard let view else { return }
+        guard let bridge, let state else { return }
         switch mode {
         case .clear(let id, let count, var selected):
-            // يلزم أن يكون مملوكاً وخارج التحصين (RULES-cards §٤)
-            guard view.owner(square) != 0, !view.fortified.contains(square) else { return }
+            // مملوك وخارج التحصين (RULES-cards §٤) — بحكم المحرّك
+            guard bridge.clearAllowed(state: state, square: square) else { return }
             if let i = selected.firstIndex(of: square) { selected.remove(at: i) } else { selected = Array((selected + [square]).suffix(count)) }
             targeting = .clear(cardId: id, count: count, selected: selected)
         case .fortify(let id, _):

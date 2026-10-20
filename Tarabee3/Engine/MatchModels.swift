@@ -61,23 +61,15 @@ enum CardType: String, Codable, Sendable, CaseIterable {
     case fortify
     case doubleCross = "double_cross"
     case placeAnywhere = "place_anywhere"
-
-    /// نافذته (RULES-cards «النوافذ»).
-    enum Window { case question, board, reaction }
-
-    var window: Window {
-        switch self {
-        case .swapQuestion, .anyAnswer, .clearSquares, .fortify: .question
-        case .doubleCross, .placeAnywhere: .board
-        case .burn: .reaction
-        }
-    }
+    // نافذة كل كرت يحكمها المحرّك (engine.ts: cardBlock)، ويصل حكمها في CardView.blocked
 }
 
 struct CardView: Codable, Equatable, Sendable, Identifiable {
     var id: Int
     var type: CardType
     var clearCount: Int?
+    /// لصاحب الكرت وحده: لماذا لا يُلعب الآن، من حكم المحرّك نفسه (engine.ts: cardBlock). بلا قيمة: يُلعب.
+    var blocked: String?
 }
 
 struct SeatView: Codable, Equatable, Sendable, Identifiable {
@@ -140,6 +132,9 @@ struct RoundView: Codable, Equatable, Sendable {
     var myAnswer: AnswerChoice?
     var groupAnswers: [GroupAnswerView]?
     var winnerSeat: Int?
+    /// في الاختيار، من المحرّك: عدد المراكز، وهل يجوز الصندوق.
+    var centersNeeded: Int?
+    var boxAllowed: Bool?
 
     var isGroup: Bool { type == "group" }
 }

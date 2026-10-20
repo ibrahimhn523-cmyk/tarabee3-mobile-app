@@ -82,6 +82,27 @@ final class TrainingTests: XCTestCase {
         XCTAssertEqual(bridge.crossCells(boardSize: 9, center: Square(row: 0, col: 0)).count, 3)
         XCTAssertEqual(bridge.crossCells(boardSize: 9, center: Square(row: 4, col: 4)).count, 5)
         XCTAssertEqual([3, 4, 5].map { bridge.suggestedBoard(size: $0) }, [9, 10, 11])
+        // حدّ الحزمة على الجهاز هو حساب المحرّك نفسه (مراجعة M-05، المشكلة ٢)
+        XCTAssertEqual(TrainingPack.minimumQuestions, bridge.questionsNeeded(size: 5))
+    }
+
+    /// المربع الصالح من المحرّك: لا معاينة على مربع مملوك ولا اعتماد بعدد غير ما يطلبه (مراجعة M-05، المشكلة ٤).
+    func testChoosingFollowsTheEngine() throws {
+        let (s, clock) = session(seed: 2)
+        run(s, clock, choose: false) { $0.isChooser }
+        let view = try XCTUnwrap(s.view)
+        XCTAssertEqual(view.round?.centersNeeded, 1)
+        XCTAssertEqual(view.round?.boxAllowed, true)
+        XCTAssertTrue(s.canOpenBox)
+        let squares = (0..<view.board.count).map { Square(row: $0 / view.boardSize, col: $0 % view.boardSize) }
+        if let owned = squares.first(where: { view.owner($0) != 0 }) {
+            s.select(owned)
+            XCTAssertTrue(s.preview.isEmpty, "مربع مملوك لا يُعاين بلا «ضع في أي مربع»")
+        }
+        let free = try XCTUnwrap(squares.first { view.owner($0) == 0 && !view.fortified.contains($0) })
+        s.select(free)
+        XCTAssertEqual(s.preview, [free])
+        XCTAssertTrue(s.canCommit)
     }
 
     /// السؤال المعطوب في الحزمة يُستبعد ولا يجمّد التدريب (مراجعة M-04، المشكلة ٥).
@@ -166,7 +187,10 @@ final class TrainingTests: XCTestCase {
         XCTAssertEqual(s.view?.round?.choice, "box")
         let card = try XCTUnwrap(s.me?.cards.first)
         XCTAssertEqual(s.view?.round?.boxCard?.type, card.type)
+        XCTAssertNotNil(card.blocked, "المحرّك يقول لماذا لا يُلعب الآن")
         XCTAssertFalse(s.playability(card).ok, "لا يُلعب بعد انتهاء الاختيار")
+        // والآلي لا يرى سبب كرتي، ولا أرى سبب كرت غيري
+        XCTAssertTrue(s.view?.seats.filter(\.isBot).allSatisfy(\.cards.isEmpty) == true)
     }
 }
 

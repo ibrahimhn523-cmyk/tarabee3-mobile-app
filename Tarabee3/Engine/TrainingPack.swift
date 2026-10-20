@@ -3,8 +3,8 @@ import Foundation
 /// حزمة أسئلة التدريب (R-45): تُشحن مع التطبيق، ويجدّدها من الخادم عند الاتصال إن تغيّر رقم نسختها،
 /// وتُحفظ على الجهاز فيعمل التدريب بلا إنترنت. والمشحونة الآن مؤقتة حتى يرفع المالك قسم التدريب.
 enum TrainingPack {
-    /// أقل ما يكفي أطول مباراة (training.ts: questionsNeeded للخماسية).
-    static let minimumQuestions = 55
+    /// أقل ما يكفي أطول مباراة (training.ts: questionsNeeded للخماسية). يحرسه اختبار يقارنه بالمحرّك نفسه.
+    static let minimumQuestions = 65
 
     private static var savedURL: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?

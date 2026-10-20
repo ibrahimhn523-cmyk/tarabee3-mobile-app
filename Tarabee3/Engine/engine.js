@@ -28,8 +28,13 @@ var Tarabee3Engine = (() => {
     CARD_TYPES: () => CARD_TYPES,
     TIMES: () => TIMES,
     answer: () => answer,
+    boxAllowed: () => boxAllowed,
     bridge: () => bridge,
+    cardBlock: () => cardBlock,
+    centerAllowed: () => centerAllowed,
+    centersNeeded: () => centersNeeded,
     choose: () => choose,
+    clearAllowed: () => clearAllowed,
     createMatch: () => createMatch,
     createTraining: () => createTraining,
     crossCells: () => crossCells,
@@ -520,14 +525,12 @@ var Tarabee3Engine = (() => {
     if (round.chooser !== seatNo || isBot(state, seatNo)) return { state, events, rejected: "not_your_turn" };
     if (pick2?.kind === "box") {
       if ((state.boxes[String(seatNo)] ?? 0) <= 0) return { state, events, rejected: "no_box" };
+      if (round.boardCard) return { state, events, rejected: "not_now" };
       doBox(state, at, events);
       return { state, events };
     }
     const centers = pick2?.kind === "square" && Array.isArray(pick2.centers) ? pick2.centers : [];
-    const needed = round.boardCard === "double_cross" ? 2 : 1;
-    const forts = fortified(state);
-    const anywhere = round.boardCard === "place_anywhere";
-    const valid = centers.length === needed && centers.every((c) => canCenter(state.board, state.boardSize, c?.row, c?.col, forts, anywhere)) && new Set(centers.map((c) => `${c.row},${c.col}`)).size === centers.length;
+    const valid = centers.length === centersNeeded(round) && centers.every((c) => centerAllowed(state, c)) && new Set(centers.map((c) => `${c.row},${c.col}`)).size === centers.length;
     if (!valid) return { state, events, rejected: "bad_square" };
     doSquare(state, centers.map((c) => ({ row: c.row, col: c.col })), at, events);
     return { state, events };
@@ -539,15 +542,12 @@ var Tarabee3Engine = (() => {
     const card = state.cards.find((c) => c.id === cardId && c.seatNo === seatNo && c.status === "held");
     if (!card) return { state, events, rejected: "no_card" };
     const round = currentRound(state);
-    const p = state.phase;
     const reject = (r) => ({ state, events, rejected: r });
-    const questionWindow = p.kind === "answering" && round?.type === "turn" && round.seatNo === seatNo && round.answer === void 0;
-    const boardWindow = p.kind === "choosing" && round?.chooser === seatNo && !round.boardCard;
+    if (cardBlock(state, seatNo, card)) return reject("card_not_now");
     switch (card.type) {
       case "burn":
         return reject("card_not_now");
       case "swap_question": {
-        if (!questionWindow || round.anyAnswer) return reject("card_not_now");
         const next2 = drawQuestion(state);
         round.swappedOut = [...round.swappedOut ?? [], round.questionId];
         round.questionId = next2.id;
@@ -556,14 +556,11 @@ var Tarabee3Engine = (() => {
         break;
       }
       case "any_answer":
-        if (!questionWindow) return reject("card_not_now");
         round.anyAnswer = true;
         break;
       case "clear_squares": {
-        if (!questionWindow) return reject("card_not_now");
         const cells = Array.isArray(target?.cells) ? target.cells : [];
-        const forts = fortified(state);
-        const ok = cells.length === card.clearCount && new Set(cells.map((c) => `${c?.row},${c?.col}`)).size === cells.length && cells.every((c) => inBoard(state.boardSize, c?.row, c?.col) && state.board[index(state.boardSize, c.row, c.col)] !== 0 && !forts.has(index(state.boardSize, c.row, c.col)));
+        const ok = cells.length === card.clearCount && new Set(cells.map((c) => `${c?.row},${c?.col}`)).size === cells.length && cells.every((c) => clearAllowed(state, c));
         if (!ok) return reject("bad_target");
         const changes = cells.map((c) => {
           const i = index(state.boardSize, c.row, c.col);
@@ -576,7 +573,6 @@ var Tarabee3Engine = (() => {
         return { state, events };
       }
       case "fortify": {
-        if (!questionWindow) return reject("card_not_now");
         const c = target?.center;
         if (!c || !inBoard(state.boardSize, c.row, c.col)) return reject("bad_target");
         state.fortsCreated++;
@@ -591,12 +587,43 @@ var Tarabee3Engine = (() => {
       }
       case "double_cross":
       case "place_anywhere":
-        if (!boardWindow) return reject("card_not_now");
         round.boardCard = card.type;
         break;
     }
     spend(state, card, round, at, events);
     return { state, events };
+  }
+  function cardBlock(state, seatNo, card) {
+    const round = currentRound(state);
+    const p = state.phase;
+    switch (card.type) {
+      case "burn":
+        return "reaction";
+      case "double_cross":
+      case "place_anywhere":
+        if (p.kind !== "choosing" || round?.chooser !== seatNo) return "board_window";
+        return round.boardCard ? "one_board_card" : null;
+      default:
+        if (p.kind === "group") return "group";
+        if (p.kind !== "answering" || round?.type !== "turn" || round.seatNo !== seatNo || round.answer !== void 0) {
+          return "question_window";
+        }
+        return card.type === "swap_question" && round.anyAnswer ? "swap_locked" : null;
+    }
+  }
+  function centerAllowed(state, c) {
+    const anywhere = currentRound(state)?.boardCard === "place_anywhere";
+    return canCenter(state.board, state.boardSize, c?.row, c?.col, fortified(state), anywhere);
+  }
+  var centersNeeded = (round) => round.boardCard === "double_cross" ? 2 : 1;
+  function boxAllowed(state, seatNo) {
+    const round = currentRound(state);
+    return state.phase.kind === "choosing" && round?.chooser === seatNo && !isBot(state, seatNo) && !round.boardCard && (state.boxes[String(seatNo)] ?? 0) > 0;
+  }
+  function clearAllowed(state, c) {
+    if (!inBoard(state.boardSize, c?.row, c?.col)) return false;
+    const i = index(state.boardSize, c.row, c.col);
+    return state.board[i] !== 0 && !fortified(state).has(i);
   }
   function spend(state, card, round, at, events) {
     card.status = "spent";
@@ -628,7 +655,7 @@ var Tarabee3Engine = (() => {
   // server/engine/training.ts
   function questionsNeeded(size) {
     const turns = size * Math.max(cyclesFor(size, true), cyclesFor(size, false));
-    return turns + 5;
+    return turns + 5 + size * BOXES_PER_SEAT;
   }
   function createTraining(setup, now) {
     if (setup.questions.length < questionsNeeded(setup.size)) throw new Error("training pack too small");
@@ -682,6 +709,10 @@ var Tarabee3Engine = (() => {
         ...r.anyAnswer ? { anyAnswer: true } : {},
         ...r.boardCard ? { boardCard: r.boardCard } : {}
       };
+      if (p.kind === "choosing") {
+        round.centersNeeded = centersNeeded(r);
+        round.boxAllowed = boxAllowed(state, r.chooser);
+      }
       if (r.type === "group") {
         if (over) {
           round.groupAnswers = r.groupAnswers.map((a) => ({ seatNo: a.seatNo, choice: a.choice, correct: a.correct }));
@@ -706,7 +737,10 @@ var Tarabee3Engine = (() => {
         persona: { ...s.persona },
         squares: squaresOf(state.board, s.seatNo),
         boxesLeft: state.boxes[String(s.seatNo)] ?? 0,
-        cards: heldCards(state, s.seatNo).map((c) => ({ id: c.id, type: c.type, ...c.clearCount ? { clearCount: c.clearCount } : {} }))
+        cards: heldCards(state, s.seatNo).map((c) => {
+          const blocked = s.seatNo === forSeat ? cardBlock(state, s.seatNo, c) : null;
+          return { id: c.id, type: c.type, ...c.clearCount ? { clearCount: c.clearCount } : {}, ...blocked ? { blocked } : {} };
+        })
       })),
       order: orderOf(state, Math.min(state.cycle, state.cyclesTotal)),
       fortifications: state.fortifications.map((f) => ({
@@ -738,7 +772,11 @@ var Tarabee3Engine = (() => {
     decideBurn: (stateJson, seatNo, burn, now) => out(decideBurn(JSON.parse(stateJson), seatNo, burn, now), seatNo),
     // قواعد يحتاجها العرض قبل الحكم، من المحرّك نفسه لا مكرّرة في سويفت
     crossCells: (boardSize, row, col) => JSON.stringify(crossCells(boardSize, row, col)),
-    suggestedBoard: (size) => suggestedBoard(size)
+    suggestedBoard: (size) => suggestedBoard(size),
+    questionsNeeded: (size) => questionsNeeded(size),
+    /** هل يجوز هذا المربع مركزاً لمن يختار الآن، أو هدفاً للتفريغ — الحكم نفسه الذي يحكم به choose وplayCard. */
+    centerAllowed: (stateJson, row, col) => centerAllowed(JSON.parse(stateJson), { row, col }),
+    clearAllowed: (stateJson, row, col) => clearAllowed(JSON.parse(stateJson), { row, col })
   };
   return __toCommonJS(index_exports);
 })();

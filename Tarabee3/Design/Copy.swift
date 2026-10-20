@@ -123,6 +123,18 @@ enum Copy {
         static let swapLocked = "لا يُلعب بعد «أي إجابة صح»."
         static let oneBoardCard = "كرت لوح واحد في الدور."
         static let none = "لا كروت معك."
+        /// سبب المنع من المحرّك (engine.ts: cardBlock) نصّاً.
+        static func blocked(_ code: String) -> String {
+            switch code {
+            case "reaction": reactionOnly
+            case "question_window": questionWindow
+            case "board_window": boardWindow
+            case "group": notInGroup
+            case "swap_locked": swapLocked
+            case "one_board_card": oneBoardCard
+            default: notNow
+            }
+        }
         static let clearTarget = "اختر المربعات المملوكة التي تفرّغها"
         static let fortifyTarget = "اختر مركز التحصين"
         static let confirm = "اعتمد"
@@ -137,6 +149,7 @@ enum Copy {
         static func box(_ left: Int) -> String { "صندوق (\(left))" }
         static let openBox = "افتح الصندوق"
         static let boxesGone = "نفدت صناديقك."
+        static let boxAfterCard = "بعد كرت اللوح يبقى المربع وحده."
         static func gotCard(_ name: String) -> String { "خرج لك: \(name)" }
         static func opened(_ name: String) -> String { "فتح \(name) صندوقاً" }
     }

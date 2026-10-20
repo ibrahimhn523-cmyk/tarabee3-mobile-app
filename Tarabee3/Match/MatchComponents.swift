@@ -155,6 +155,7 @@ struct SeatBadge: View {
     var active = false
     /// في الجماعية: أجاب، بلا كشف صوابه (S-12).
     var answered = false
+    var showCards = true
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -172,12 +173,18 @@ struct SeatBadge: View {
                 }
             }
             .foregroundStyle(palette.textMuted)
-            // الكروت معلنة للجميع (R-39)
-            if !seat.cards.isEmpty {
+            // الكروت معلنة للجميع (R-39)، والتفريغ بعدده: «لا بد أن يُعلن بعدده» (RULES-cards §٤)
+            if showCards && !seat.cards.isEmpty {
                 HStack(spacing: 2) {
                     ForEach(seat.cards) { card in
-                        Image(Copy.Cards.icon(card.type)).resizable().frame(width: 12, height: 12)
-                            .accessibilityLabel(Copy.Cards.name(card.type))
+                        HStack(spacing: 0) {
+                            Image(Copy.Cards.icon(card.type)).resizable().frame(width: 12, height: 12)
+                            if let n = card.clearCount {
+                                Text(verbatim: String(n)).font(.app(.caption, .bold)).monospacedDigit()
+                            }
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Copy.Cards.name(card.type) + (card.clearCount.map { " · " + Copy.Cards.clearCount($0) } ?? ""))
                     }
                 }
                 .foregroundStyle(palette.text)

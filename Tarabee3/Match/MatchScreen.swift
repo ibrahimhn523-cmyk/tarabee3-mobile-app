@@ -141,14 +141,15 @@ struct MatchScreen: View {
         statusLine(choiceMode == .box ? Copy.Choice.openBox : note, palette)
         TimerView(deadline: deadline, total: view.times.choose, now: session.now)
         SplitPicker(options: [(ChoiceMode.square, Copy.Choice.square), (ChoiceMode.box, Copy.Choice.box(boxes))], selection: $choiceMode)
-            .disabled(boardCard != nil)
         if choiceMode == .box {
             Spacer(minLength: 0)
             Image("icon-package").resizable().frame(width: 64, height: 64).foregroundStyle(palette.text)
                 .accessibilityHidden(true)
-            if boxes == 0 { Text(Copy.Choice.boxesGone).font(.app(.small)).foregroundStyle(palette.textMuted) }
+            if !session.canOpenBox {
+                Text(boxes == 0 ? Copy.Choice.boxesGone : Copy.Choice.boxAfterCard).font(.app(.small)).foregroundStyle(palette.textMuted)
+            }
             Spacer(minLength: 0)
-            Button(Copy.Choice.openBox) { session.openBox() }.appButton(.primary).disabled(boxes == 0)
+            Button(Copy.Choice.openBox) { session.openBox() }.appButton(.primary).disabled(!session.canOpenBox)
         } else {
             BoardView(view: view, preview: session.preview, previewCells: session.previewCells,
                       previewSeat: TrainingSession.mySeat) { session.select($0) }
@@ -185,8 +186,10 @@ struct MatchScreen: View {
         let activeSeat = view.phase.kind == "choosing" ? view.round?.chooser : view.round?.seatNo
         return HStack(alignment: .top, spacing: Space.s(1)) {
             ForEach(view.order.compactMap { view.seat($0) }) { seat in
+                // S-12: «الشارات صفّاً أعلاها بلا كروت» (05-ui §٦)
                 SeatBadge(seat: seat, active: activeSeat == seat.seatNo && view.phase.kind != "countdown",
-                          answered: view.phase.kind == "group" && answered.contains(seat.seatNo))
+                          answered: view.phase.kind == "group" && answered.contains(seat.seatNo),
+                          showCards: view.phase.kind != "group")
             }
             Button { confirmExit = true } label: {
                 Image("icon-x").resizable().frame(width: IconSize.small, height: IconSize.small)
