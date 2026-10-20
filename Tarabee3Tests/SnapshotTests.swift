@@ -22,14 +22,16 @@ final class SnapshotTests: XCTestCase {
     /// يعرض الشاشة في نافذة حقيقية ثم يلتقطها، فتظهر الحقول والتمرير كما على الجوال.
     private func screen<V: View>(
         _ view: V, _ name: String, scheme: ColorScheme, width: CGFloat = 393, height: CGFloat = 852
-    ) throws {
+    ) async throws {
         let appearance: Appearance = scheme == .dark ? .dark : .light
         let host = UIHostingController(rootView: view.appEnvironment(appearance))
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: height))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: width, height: height)
         window.overrideUserInterfaceStyle = scheme == .dark ? .dark : .light
         window.rootViewController = host
-        window.makeKeyAndVisible()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        window.isHidden = false
+        try await Task.sleep(for: .milliseconds(600))
         host.view.layoutIfNeeded()
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
             _ = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
@@ -45,9 +47,9 @@ final class SnapshotTests: XCTestCase {
     func testFirstOpenScreen() async throws {
         let store = ProfileStore(backend: FakeBackend())
         await store.start()
-        try screen(FirstOpenView(store: store), "S-01-first-open-dark", scheme: .dark)
-        try screen(FirstOpenView(store: store), "S-01-first-open-light", scheme: .light)
-        try screen(FirstOpenView(store: store), "S-01-first-open-375", scheme: .dark, width: 375, height: 667)
+        try await screen(FirstOpenView(store: store), "S-01-first-open-dark", scheme: .dark)
+        try await screen(FirstOpenView(store: store), "S-01-first-open-light", scheme: .light)
+        try await screen(FirstOpenView(store: store), "S-01-first-open-375", scheme: .dark, width: 375, height: 667)
     }
 
     func testHomeScreen() async throws {
@@ -56,8 +58,8 @@ final class SnapshotTests: XCTestCase {
         let played = Player(id: "p", name: "Saad سعد", persona: .default, matchesPlayed: 14, wins: 5)
         let store = ProfileStore(backend: FakeBackend(player: fresh))
         await store.start()
-        try screen(HomeView(store: store, player: fresh), "S-02-home-empty-dark", scheme: .dark)
-        try screen(HomeView(store: store, player: played), "S-02-home-stats-light", scheme: .light)
+        try await screen(HomeView(store: store, player: fresh), "S-02-home-empty-dark", scheme: .dark)
+        try await screen(HomeView(store: store, player: played), "S-02-home-stats-light", scheme: .light)
     }
 
     func testSettingsScreen() async throws {
@@ -65,8 +67,8 @@ final class SnapshotTests: XCTestCase {
                             persona: Persona(expression: .wink, head: .cap, eye: .glasses, neck: .shawl))
         let store = ProfileStore(backend: FakeBackend(player: player))
         await store.start()
-        try screen(SettingsView(store: store, player: player), "S-03-settings-dark", scheme: .dark, height: 1400)
-        try screen(SettingsView(store: store, player: player), "S-03-settings-light", scheme: .light, height: 1400)
+        try await screen(SettingsView(store: store, player: player), "S-03-settings-dark", scheme: .dark, height: 1400)
+        try await screen(SettingsView(store: store, player: player), "S-03-settings-light", scheme: .light, height: 1400)
     }
 
     /// كل التعابير، وكل التلبيسات، والمقاعد الخمسة، والمبسّط تحت ٢٤، والشماغ المبسّط تحت ٤٠.

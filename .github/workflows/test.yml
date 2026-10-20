@@ -46,6 +46,7 @@ jobs:
           xcrun simctl list devices available | grep "$UDID"
 
       - name: Test (unit + snapshots)
+        timeout-minutes: 30
         env:
           TEST_RUNNER_SNAPSHOT_DIR: ${{ runner.temp }}/snapshots
         run: |
@@ -53,6 +54,9 @@ jobs:
             -project Tarabee3.xcodeproj -scheme Tarabee3 \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -resultBundlePath "$RUNNER_TEMP/Tests.xcresult" \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 60 \
+            -maximum-test-execution-time-allowance 120 \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Test summary
