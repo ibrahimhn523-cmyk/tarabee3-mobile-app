@@ -20,6 +20,12 @@ final class ProfileStore {
 
     private let backend: ProfileBackend?
 
+    /// للمباراة السريعة: العنوان ورمز طازج من الخلفية عند كل اتصال.
+    func onlineEndpoint() async throws -> (base: URL, token: String) {
+        guard let backend else { throw ProfileError.notConfigured }
+        return try await backend.onlineEndpoint()
+    }
+
     init(backend: ProfileBackend?) {
         self.backend = backend
         if backend == nil { phase = .notConfigured }

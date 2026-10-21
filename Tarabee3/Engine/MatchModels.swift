@@ -176,6 +176,12 @@ struct MatchTimes: Codable, Equatable, Sendable {
     var burn: Double
 }
 
+/// لمقعد العرض وحده: المربعات التي يجيزها الحَكَم الآن بأرقامها في اللوح — مراكز، وأهداف تفريغ.
+struct TargetsView: Codable, Equatable, Sendable {
+    var centers: [Int]?
+    var clear: [Int]?
+}
+
 struct MatchView: Codable, Equatable, Sendable {
     var size: Int
     var boardSize: Int
@@ -190,6 +196,7 @@ struct MatchView: Codable, Equatable, Sendable {
     var phase: PhaseView
     var round: RoundView?
     var ranking: [RankRow]?
+    var targets: TargetsView?
 
     func seat(_ no: Int) -> SeatView? { seats.first { $0.seatNo == no } }
     func owner(_ row: Int, _ col: Int) -> Int { board[row * boardSize + col] }

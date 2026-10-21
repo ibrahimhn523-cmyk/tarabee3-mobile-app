@@ -34,6 +34,7 @@ final class FakeBackend: ProfileBackend {
     }
 
     func refreshTrainingPack() async {}
+    func onlineEndpoint() async throws(ProfileError) -> (base: URL, token: String) { throw .notConfigured }
 
     func deleteAccount() async throws(ProfileError) {
         deletions += 1

@@ -343,6 +343,33 @@ final class MatchSnapshotTests: XCTestCase {
         }
     }
 
+    /// S-06 والمباراة أون لاين بعرض من المحرّك نفسه، ورد جاهز فوق شارة مرسله (M-06). بلا شبكة.
+    func testOnlineScreens() async throws {
+        let s = OnlineSession(endpoint: { try await Task.sleep(for: .seconds(3600)); throw URLError(.cancelled) })
+        let screen = QuickMatchView(player: player, session: s, onClose: {})
+        try await capture(screen, "S-06-choose")
+        s.search(.four)
+        try await capture(screen, "S-06-searching")
+
+        // دور غيري: يتقدّم المحرّك حتى يجيب مقعد آخر
+        let bridge = try EngineBridge()
+        let pack = try XCTUnwrap(TrainingPack.current())
+        let setup = """
+        {"size":3,"boardSize":9,"seed":5,"player":{"displayName":"أبو خليل","persona":{"expression":"واثق","head":"شماغ","eye":"بلا","neck":"بلا"}},"questions":\(pack.questionsJSON)}
+        """
+        var out = try bridge.createTraining(setupJSON: setup, now: 1_000_000, viewer: 1)
+        var t = 1_000_000.0
+        while !(out.view.phase.kind == "answering" && out.view.round?.seatNo != 1), t < 1_200_000 {
+            t += 500
+            out = try bridge.tick(state: out.state, now: t, viewer: 1)
+        }
+        // ساعة الخادم = لحظة العرض، فيظهر المؤقّت كاملاً تقريباً
+        let viewObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(out.view))
+        s.receive(try JSONSerialization.data(withJSONObject: ["t": "state", "now": t, "seat": 1, "view": viewObject]))
+        s.receive(try JSONSerialization.data(withJSONObject: ["t": "reply", "now": t, "seat": out.view.round?.seatNo ?? 2, "id": 0]))
+        try await capture(screen, "S-10-online-replies")
+    }
+
     /// يختار هدف الكرت: مربعات مملوكة لغيري للتفريغ، ومركز اللوح للتحصين.
     private func target(_ s: TrainingSession) {
         guard let view = s.view else { return }

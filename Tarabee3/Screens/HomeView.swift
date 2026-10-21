@@ -8,6 +8,7 @@ struct HomeView: View {
 
     @State private var showSettings = false
     @State private var showTraining = false
+    @State private var quickMatch: OnlineSession?
     @AppStorage(Appearance.storageKey) private var appearance: Appearance = .system
     @Environment(\.colorScheme) private var scheme
 
@@ -45,15 +46,24 @@ struct HomeView: View {
             .padding(.horizontal, Space.s(3))
             .padding(.vertical, Space.s(2))
         }
-        // المباراة السريعة تصير الزرّ الأساسي مع M-06؛ حتى ذلك التدريب وحده (M-04)
+        // المباراة السريعة الزرّ الأساسي (M-06)، والتدريب بعدها
         .safeAreaInset(edge: .bottom) {
-            Button(Copy.Home.training) { showTraining = true }
+            VStack(spacing: Space.s(2)) {
+                Button(Copy.Online.quickMatch) {
+                    let s = store
+                    quickMatch = OnlineSession(endpoint: { try await s.onlineEndpoint() })
+                }
                 .appButton(.primary)
-                .padding(.horizontal, Space.s(3))
-                .padding(.vertical, Space.s(2))
-                .background(palette.ground)
+                Button(Copy.Home.training) { showTraining = true }.appButton(.secondary)
+            }
+            .padding(.horizontal, Space.s(3))
+            .padding(.vertical, Space.s(2))
+            .background(palette.ground)
         }
         .appBackground()
+        .fullScreenCover(item: $quickMatch) { session in
+            QuickMatchView(player: player, session: session) { quickMatch = nil }.appEnvironment(appearance)
+        }
         .fullScreenCover(isPresented: $showTraining) {
             TrainingSetupView(player: player) { showTraining = false }.appEnvironment(appearance)
         }

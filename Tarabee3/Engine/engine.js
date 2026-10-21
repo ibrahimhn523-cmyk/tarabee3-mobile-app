@@ -38,6 +38,7 @@ var Tarabee3Engine = (() => {
     createMatch: () => createMatch,
     createTraining: () => createTraining,
     crossCells: () => crossCells,
+    currentRound: () => currentRound,
     cyclesFor: () => cyclesFor,
     decideBurn: () => decideBurn,
     heldCards: () => heldCards,
@@ -47,7 +48,8 @@ var Tarabee3Engine = (() => {
     ranking: () => ranking,
     suggestedBoard: () => suggestedBoard,
     tick: () => tick,
-    view: () => view
+    view: () => view,
+    wakeAt: () => wakeAt
   });
 
   // server/engine/board.ts
@@ -651,6 +653,22 @@ var Tarabee3Engine = (() => {
     if (p.windows.every((x) => x.decided)) finishBurn(state, at);
     return { state, events };
   }
+  function wakeAt(state) {
+    const p = state.phase;
+    switch (p.kind) {
+      case "countdown":
+      case "display":
+      case "burn":
+        return p.until;
+      case "answering":
+      case "choosing":
+        return p.botAt !== void 0 ? Math.min(p.deadline, p.botAt) : p.deadline;
+      case "group":
+        return Math.min(p.deadline, ...p.bots.filter((b) => !currentRound(state)?.groupAnswers?.some((a) => a.seatNo === b.seatNo)).map((b) => b.at));
+      case "ended":
+        return null;
+    }
+  }
 
   // server/engine/training.ts
   function questionsNeeded(size) {
@@ -752,8 +770,21 @@ var Tarabee3Engine = (() => {
       })),
       phase,
       ...round ? { round } : {},
-      ...p.kind === "ended" ? { ranking: ranking(state.board, state.seats.map((s) => s.seatNo)) } : {}
+      ...p.kind === "ended" ? { ranking: ranking(state.board, state.seats.map((s) => s.seatNo)) } : {},
+      ...targetsFor(state, forSeat)
     };
+  }
+  function targetsFor(state, forSeat) {
+    if (forSeat === void 0) return {};
+    const cells = state.board.map((_, i) => ({ row: Math.floor(i / state.boardSize), col: i % state.boardSize }));
+    const indices = (ok) => cells.flatMap((c, i) => ok(c) ? [i] : []);
+    const r = currentRound(state);
+    const targets = {};
+    if (state.phase.kind === "choosing" && r?.chooser === forSeat) targets.centers = indices((c) => centerAllowed(state, c));
+    if (heldCards(state, forSeat).some((c) => c.type === "clear_squares" && !cardBlock(state, forSeat, c))) {
+      targets.clear = indices((c) => clearAllowed(state, c));
+    }
+    return Object.keys(targets).length ? { targets } : {};
   }
 
   // server/engine/index.ts
@@ -773,10 +804,7 @@ var Tarabee3Engine = (() => {
     // قواعد يحتاجها العرض قبل الحكم، من المحرّك نفسه لا مكرّرة في سويفت
     crossCells: (boardSize, row, col) => JSON.stringify(crossCells(boardSize, row, col)),
     suggestedBoard: (size) => suggestedBoard(size),
-    questionsNeeded: (size) => questionsNeeded(size),
-    /** هل يجوز هذا المربع مركزاً لمن يختار الآن، أو هدفاً للتفريغ — الحكم نفسه الذي يحكم به choose وplayCard. */
-    centerAllowed: (stateJson, row, col) => centerAllowed(JSON.parse(stateJson), { row, col }),
-    clearAllowed: (stateJson, row, col) => clearAllowed(JSON.parse(stateJson), { row, col })
+    questionsNeeded: (size) => questionsNeeded(size)
   };
   return __toCommonJS(index_exports);
 })();

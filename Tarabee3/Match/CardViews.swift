@@ -2,7 +2,7 @@ import SwiftUI
 
 /// يد الكروت في لوحة سفلية (05-ui §٦ «الكرت»، §٩): أيقونة لوسيد واسمه وسطره؛ ليس وقته: خافت مع السبب.
 struct CardsSheet: View {
-    let session: TrainingSession
+    let session: any MatchSession
     var onClose: () -> Void
     @Environment(\.colorScheme) private var scheme
 
@@ -47,7 +47,7 @@ struct CardsSheet: View {
 
 /// زرّ «الكروت» في شاشات المباراة: يظهر إن كان معه كرت، ويُعلَّم إن كان فيها ما يُلعب الآن.
 struct CardsButton: View {
-    let session: TrainingSession
+    let session: any MatchSession
     @Binding var showCards: Bool
     @Environment(\.colorScheme) private var scheme
 
@@ -70,7 +70,7 @@ struct CardsButton: View {
 /// S-13 · نافذة الحرق (05-ui §٦، §١٦): تملأ الشاشة عشر ثوانٍ — أفاتار المعتدي ٨٠ واسمه، وما سُحب ويعود بالحرق،
 /// والعدّاد، وزرّا «احرق» و«تجاوز». والصمت لا يحرق (R-40).
 struct BurnScreen: View {
-    let session: TrainingSession
+    let session: any MatchSession
     let window: BurnWindowView
     let until: Double
     @Environment(\.colorScheme) private var scheme

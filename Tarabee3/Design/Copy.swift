@@ -174,6 +174,27 @@ enum Copy {
         static let fortified = "محصّن"
     }
 
+    /// المباراة السريعة أون لاين (M-06). ما عليه «§١٠» منقول من 05-ui حرفاً، والباقي مقترح يُعتمد مع البناء.
+    enum Online {
+        static let quickMatch = "مباراة سريعة"
+        static let title = "مباراة سريعة"
+        static let line = "تلعب مع لاعبين آخرين. وإن لم يكتمل العدد في 30 ثانية أكملناه بآليين."
+        static let anySize = "أي حجم"
+        static let search = "ابحث"
+        static let searching = "نبحث عن لاعبين…" // §١٠
+        static let searchingSlot = "نبحث…" // §٦
+        static let botsAfter = "بعد 30 ثانية نكمل العدد بآليين."
+        static let filledWithBots = "لم يكتمل العدد. أكملناه بلاعبين آليين." // §١٠
+        static let secondAnswer = "أرسلت إجابتك. الأولى هي المعتمدة." // §١٠
+        static let disconnected = "انقطع الاتصال بالمباراة. أعد المحاولة بعد قليل."
+        static let noQuestions = "تعذّر تجهيز الأسئلة. أعد المحاولة بعد قليل."
+        static let exitTitle = "الخروج من المباراة"
+        static let exitConfirm = "تخرج، وتمضي المباراة بدونك."
+        /// الردود الجاهزة (R-34): ترتيبها هو رقمها عند الخادم.
+        static let replies = ["أحسنت", "حظًّا أوفر", "سؤال صعب", "ما شاء الله", "اقتربت", "مباراة حلوة"]
+        static func reply(_ i: Int) -> String { replies.indices.contains(i) ? replies[i] : "" }
+    }
+
     enum Picker {
         static let head = "الرأس"
         static let eye = "العين"

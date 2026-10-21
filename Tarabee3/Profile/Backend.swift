@@ -13,4 +13,6 @@ protocol ProfileBackend: AnyObject {
     func deleteAccount() async throws(ProfileError)
     /// يجدّد حزمة التدريب من الخادم إن تغيّرت (R-45). الفشل صامت.
     func refreshTrainingPack() async
+    /// عنوان الخادم ورمز هوية طازج للاتصال الدائم (M-06): الرمز في رأس الاتصال، لا في العنوان.
+    func onlineEndpoint() async throws(ProfileError) -> (base: URL, token: String)
 }

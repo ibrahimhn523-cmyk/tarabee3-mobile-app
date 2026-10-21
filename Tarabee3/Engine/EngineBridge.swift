@@ -98,16 +98,6 @@ final class EngineBridge {
         Int(bridge.invokeMethod("questionsNeeded", withArguments: [size])?.toInt32() ?? 0)
     }
 
-    /// هل يجوز المربع مركزاً لمن يختار الآن — حكم choose نفسه، فلا تُكرَّر القاعدة في سويفت (القاعدة ٥).
-    func centerAllowed(state: String, square: Square) -> Bool {
-        bridge.invokeMethod("centerAllowed", withArguments: [state, square.row, square.col])?.toBool() ?? false
-    }
-
-    /// هل يجوز المربع هدفاً للتفريغ — حكم playCard نفسه.
-    func clearAllowed(state: String, square: Square) -> Bool {
-        bridge.invokeMethod("clearAllowed", withArguments: [state, square.row, square.col])?.toBool() ?? false
-    }
-
     private func call(_ name: String, _ args: [Any]) throws -> Output {
         var failure: String?
         context.exceptionHandler = { _, value in failure = value?.toString() }

@@ -3,7 +3,7 @@ import SwiftUI
 /// شاشات المباراة (S-09 إلى S-14) تملأ الشاشة بلا زرّ رجوع، والمحرّك ينقل بينها (05-ui §٨).
 /// في التدريب يحكمها المحرّك على الجهاز؛ وأون لاين (M-06) يحكمها الكائن والشاشات نفسها.
 struct MatchScreen: View {
-    let session: TrainingSession
+    let session: any MatchSession
     var onPlayAgain: () -> Void
     var onExit: () -> Void
 
@@ -32,9 +32,9 @@ struct MatchScreen: View {
                         }
                     }
                 }
-            } else if session.failed {
+            } else if let failure = session.failureText {
                 VStack(spacing: Space.s(4)) {
-                    StatusBanner(kind: .error, text: Copy.Match.packMissing)
+                    StatusBanner(kind: .error, text: failure)
                     Button(Copy.Match.home, action: onExit).appButton(.secondary)
                 }
                 .padding(Space.s(3))
@@ -50,8 +50,8 @@ struct MatchScreen: View {
         }
         .sheet(isPresented: $confirmExit) {
             VStack(alignment: .leading, spacing: Space.s(4)) {
-                Text(Copy.Match.exitTitle).font(.app(.h2, .bold)).foregroundStyle(palette.text)
-                Text(Copy.Match.exitConfirm).font(.app(.body)).foregroundStyle(palette.text)
+                Text(session.repliesEnabled ? Copy.Online.exitTitle : Copy.Match.exitTitle).font(.app(.h2, .bold)).foregroundStyle(palette.text)
+                Text(session.repliesEnabled ? Copy.Online.exitConfirm : Copy.Match.exitConfirm).font(.app(.body)).foregroundStyle(palette.text)
                 Spacer(minLength: 0)
                 Button(Copy.Match.exit) { confirmExit = false; onExit() }.appButton(.danger)
                 Button(Copy.Settings.cancel) { confirmExit = false }.appButton(.plain).frame(maxWidth: .infinity)
@@ -70,6 +70,9 @@ struct MatchScreen: View {
         let kind = view.phase.kind
         VStack(spacing: Space.s(3)) {
             header(view, palette)
+            if let notice = notice(view) {
+                StatusBanner(kind: .info, text: notice)
+            }
 
             if kind == "countdown" {
                 CountdownView(until: view.phase.until ?? now, now: now)
@@ -110,6 +113,7 @@ struct MatchScreen: View {
             } else {
                 // S-10 · دور غيرك، وعرض اللوح بعد كل دور
                 statusLine(otherStatus(view), palette)
+                if session.repliesEnabled { RepliesRow(session: session) }
                 if kind != "display", let deadline = view.phase.deadline {
                     TimerView(deadline: deadline, total: kind == "choosing" ? view.times.choose : view.times.answer, now: now)
                 }
@@ -152,7 +156,7 @@ struct MatchScreen: View {
             Button(Copy.Choice.openBox) { session.openBox() }.appButton(.primary).disabled(!session.canOpenBox)
         } else {
             BoardView(view: view, preview: session.preview, previewCells: session.previewCells,
-                      previewSeat: TrainingSession.mySeat) { session.select($0) }
+                      previewSeat: session.mySeat) { session.select($0) }
             Spacer(minLength: 0)
             HStack(spacing: Space.s(2)) {
                 CardsButton(session: session, showCards: $showCards)
@@ -190,6 +194,12 @@ struct MatchScreen: View {
                 SeatBadge(seat: seat, active: activeSeat == seat.seatNo && view.phase.kind != "countdown",
                           answered: view.phase.kind == "group" && answered.contains(seat.seatNo),
                           showCards: view.phase.kind != "group")
+                    .overlay(alignment: .top) {
+                        // الرد الجاهز فوق شارة مرسله ثانيتين (05-ui §٦)
+                        if let bubble = session.replies.last(where: { $0.seat == seat.seatNo && $0.until > session.now }) {
+                            ReplyChip(text: Copy.Online.reply(bubble.reply)).offset(y: -Space.s(2))
+                        }
+                    }
             }
             Button { confirmExit = true } label: {
                 Image("icon-x").resizable().frame(width: IconSize.small, height: IconSize.small)
@@ -198,6 +208,13 @@ struct MatchScreen: View {
             }
             .accessibilityLabel(Copy.Match.exit)
         }
+    }
+
+    /// تنبيه أعلى المباراة: اكتمال العدد بآليين في أولها، أو إجابة ثانية مرفوضة (05-ui §١٠).
+    private func notice(_ view: MatchView) -> String? {
+        if session.lastRejection == "already_answered" { return Copy.Online.secondAnswer }
+        if let online = session as? OnlineSession, online.filledWithBots, view.cycle <= 1, view.round?.id ?? 0 <= 1 { return Copy.Online.filledWithBots }
+        return nil
     }
 
     private func statusLine(_ text: String, _ palette: Palette) -> some View {
@@ -219,14 +236,14 @@ struct MatchScreen: View {
         let kind = view.phase.kind
         // الصندوق: صاحبه يرى كرته، والباقون يرون أنه فتح صندوقاً (الكرت معلن على شارته)
         if kind == "display", round.choice == "box", let card = round.boxCard, let chooser = round.chooser {
-            return chooser == TrainingSession.mySeat ? Copy.Choice.gotCard(Copy.Cards.name(card.type)) : Copy.Choice.opened(name(view, chooser))
+            return chooser == session.mySeat ? Copy.Choice.gotCard(Copy.Cards.name(card.type)) : Copy.Choice.opened(name(view, chooser))
         }
         if round.isGroup {
             switch kind {
             case "display":
                 if round.result == "noWinner" { return Copy.Group.noWinner }
                 if round.choiceDropped == true {
-                    return round.winnerSeat == TrainingSession.mySeat ? Copy.Match.droppedMine : Copy.Match.dropped(name(view, round.winnerSeat))
+                    return round.winnerSeat == session.mySeat ? Copy.Match.droppedMine : Copy.Match.dropped(name(view, round.winnerSeat))
                 }
                 return Copy.Group.winner(name(view, round.winnerSeat))
             case "choosing": return Copy.Match.choosing(name(view, round.chooser))
@@ -234,7 +251,7 @@ struct MatchScreen: View {
             }
         }
         let who = name(view, round.seatNo)
-        let me = round.seatNo == TrainingSession.mySeat
+        let me = round.seatNo == session.mySeat
         if kind == "display" {
             if round.choiceDropped == true { return me ? Copy.Match.droppedMine : Copy.Match.dropped(who) }
             switch round.result {
