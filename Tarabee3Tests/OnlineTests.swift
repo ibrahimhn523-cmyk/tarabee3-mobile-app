@@ -183,6 +183,21 @@ final class OnlineTests: XCTestCase {
         XCTAssertNil(d.string(forKey: OnlineSession.currentMatchKey), "انتهت: لا عودة إليها")
     }
 
+    /// البلاغ عن اسم (R-60): مرة لكل لاعب، وتأكيده يُقال، ولا بلاغ عن نفسي.
+    func testReportOncePerSeat() throws {
+        let s = session()
+        try s.receive(stateMessage(engineView(), now: Date().timeIntervalSince1970 * 1000))
+        var sent: [String] = []
+        s.onSend = { sent.append($0) }
+        s.report(seat: 1)
+        s.report(seat: 2)
+        s.receive(message(["t": "reported", "now": Date().timeIntervalSince1970 * 1000, "seat": 2]))
+        s.report(seat: 2)
+        XCTAssertEqual(sent, [#"{"seat":2,"t":"report"}"#])
+        XCTAssertEqual(s.reportedSeats, [2])
+        XCTAssertGreaterThan(s.reportedUntil, s.now)
+    }
+
     func testChooserSelectsOnlyWhatTheServerAllows() throws {
         // عرض اختيار مصنوع من عرض المحرّك: المربع ٠ مسموح وحده
         var view = try engineView()

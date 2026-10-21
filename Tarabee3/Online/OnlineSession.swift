@@ -57,6 +57,9 @@ final class OnlineSession: MatchSession, Identifiable {
     /// أسماء من رفض أو سكت، يُبحث عن بدلائهم (05-ui §١٠ «بديل من الخارج»).
     private(set) var replacing: [String] = []
     private(set) var matchId: String?
+    /// من بلّغتُ عنهم في هذه المباراة (R-60)، ومتى يُقال «وصل بلاغك.».
+    private(set) var reportedSeats: Set<Int> = []
+    private(set) var reportedUntil: Double = 0
 
     private let endpoint: Endpoint
     private let session: URLSession
@@ -92,6 +95,7 @@ final class OnlineSession: MatchSession, Identifiable {
         self.size = size
         view = nil
         mySeat = 0
+        reportedSeats = []
         filledWithBots = false
         endedWhileAway = false
         rematch = nil
@@ -247,6 +251,9 @@ final class OnlineSession: MatchSession, Identifiable {
             lastRejection = m.reason
         case "rematch":
             handleRematch(m)
+        case "reported":
+            if let seat = m.seat { reportedSeats.insert(seat) }
+            reportedUntil = now + 2000
         default:
             break
         }
@@ -311,6 +318,12 @@ final class OnlineSession: MatchSession, Identifiable {
         case .burn(let burn): message = ["t": "burn", "burn": burn]
         }
         write(message)
+    }
+
+    /// بلاغ عن اسم مقعد (R-60): مرة لكل لاعب في المباراة.
+    func report(seat: Int) {
+        guard seat != mySeat, !reportedSeats.contains(seat) else { return }
+        write(["t": "report", "seat": seat])
     }
 
     /// ردّي على طلب المباراة الجديدة (R-35).

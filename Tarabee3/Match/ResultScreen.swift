@@ -4,6 +4,8 @@ import SwiftUI
 /// والزرّان ثابتان أسفلها. وفي التدريب بلا إعلان ولا احتساب.
 struct ResultScreen: View {
     let view: MatchView
+    /// أون لاين: للبلاغ عن اسم من صفوف الترتيب (S-14، R-60).
+    var session: (any MatchSession)? = nil
     var onPlayAgain: () -> Void
     var onHome: () -> Void
     /// رسالة أعلى النتيجة: أُلغيت، أو انتهت قبل عودته.
@@ -52,6 +54,7 @@ struct ResultScreen: View {
                                 Capsule().fill(seat.team.flat).frame(width: 4).padding(.vertical, Space.s(1))
                             }
                             .accessibilityElement(children: .combine)
+                            .modifier(OptionalReport(seat: seat, session: session))
                         }
                     }
                 }
@@ -72,6 +75,16 @@ struct ResultScreen: View {
             .padding(.horizontal, Space.s(3))
             .padding(.vertical, Space.s(2))
             .background(palette.ground)
+        }
+    }
+
+    /// «إبلاغ عن الاسم» بضغطة طويلة على الصف، أون لاين وحده.
+    private struct OptionalReport: ViewModifier {
+        let seat: SeatView
+        let session: (any MatchSession)?
+        @ViewBuilder
+        func body(content: Content) -> some View {
+            if let session { content.reportOnLongPress(seat, session: session) } else { content }
         }
     }
 

@@ -203,6 +203,9 @@ enum Copy {
         static let rematchClosed = "لم تُجمع مباراة جديدة."
         static func replacing(_ name: String) -> String { "نبحث عن لاعب مكان \(name)…" } // §١٠
         static let away = "منقطع"
+        static let reportAction = "إبلاغ عن الاسم" // 02-flow S-10
+        static func reportConfirm(_ name: String) -> String { "تبلّغ عن اسم \(name)؟ لا يعرف أنك أبلغت." }
+        static let reported = "وصل بلاغك."
         /// الردود الجاهزة (R-34): ترتيبها هو رقمها عند الخادم.
         static let replies = ["أحسنت", "حظًّا أوفر", "سؤال صعب", "ما شاء الله", "اقتربت", "مباراة حلوة"]
         static func reply(_ i: Int) -> String { replies.indices.contains(i) ? replies[i] : "" }

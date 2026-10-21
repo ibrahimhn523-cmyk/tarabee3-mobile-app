@@ -24,7 +24,7 @@ struct MatchScreen: View {
                     TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                         let online = session as? OnlineSession
                         ResultScreen(
-                            view: view, onPlayAgain: onPlayAgain, onHome: onExit,
+                            view: view, session: session, onPlayAgain: onPlayAgain, onHome: onExit,
                             notice: view.phase.reason == "cancelled" ? Copy.Online.cancelled
                                 : online?.endedWhileAway == true ? Copy.Online.endedBeforeReturn : nil,
                             rematch: online?.rematch, now: session.now,
@@ -226,6 +226,7 @@ struct MatchScreen: View {
                 SeatBadge(seat: seat, active: activeSeat == seat.seatNo && view.phase.kind != "countdown",
                           answered: view.phase.kind == "group" && answered.contains(seat.seatNo),
                           showCards: view.phase.kind != "group")
+                    .reportOnLongPress(seat, session: session)
                     .overlay(alignment: .top) {
                         // الرد الجاهز فوق شارة مرسله ثانيتين (05-ui §٦)
                         if let bubble = session.replies.last(where: { $0.seat == seat.seatNo && $0.until > session.now }) {
@@ -245,6 +246,7 @@ struct MatchScreen: View {
     /// تنبيه أعلى المباراة: اكتمال العدد بآليين في أولها، أو إجابة ثانية مرفوضة (05-ui §١٠).
     private func notice(_ view: MatchView) -> String? {
         if let online = session as? OnlineSession, online.reconnectedUntil > session.now { return Copy.Online.reconnected }
+        if let online = session as? OnlineSession, online.reportedUntil > session.now { return Copy.Online.reported }
         if session.lastRejection == "already_answered" { return Copy.Online.secondAnswer }
         if let online = session as? OnlineSession, online.filledWithBots, view.cycle <= 1, view.round?.id ?? 0 <= 1 { return Copy.Online.filledWithBots }
         return nil
