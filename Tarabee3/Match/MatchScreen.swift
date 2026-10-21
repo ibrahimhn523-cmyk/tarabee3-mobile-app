@@ -57,7 +57,7 @@ struct MatchScreen: View {
             // غطاء إعادة الاتصال (05-ui §٦): يحجب المباراة حتى يعود
             if let online = session as? OnlineSession, online.reconnecting {
                 ZStack {
-                    palette.ground.opacity(0.92).ignoresSafeArea()
+                    palette.ground.ignoresSafeArea()
                     VStack(spacing: Space.s(3)) {
                         ProgressView().tint(palette.text)
                         Text(Copy.Online.reconnecting).font(.app(.body, .bold)).foregroundStyle(palette.text)
