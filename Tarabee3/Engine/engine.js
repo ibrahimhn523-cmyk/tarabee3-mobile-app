@@ -26,6 +26,7 @@ var Tarabee3Engine = (() => {
     BOT_NAMES: () => BOT_NAMES,
     BOXES_PER_SEAT: () => BOXES_PER_SEAT,
     CARD_TYPES: () => CARD_TYPES,
+    PAUSE_MS: () => PAUSE_MS,
     TIMES: () => TIMES,
     answer: () => answer,
     boxAllowed: () => boxAllowed,
@@ -46,10 +47,12 @@ var Tarabee3Engine = (() => {
     playCard: () => playCard,
     questionsNeeded: () => questionsNeeded,
     ranking: () => ranking,
+    setPresence: () => setPresence,
     suggestedBoard: () => suggestedBoard,
     tick: () => tick,
     view: () => view,
-    wakeAt: () => wakeAt
+    wakeAt: () => wakeAt,
+    withdraw: () => withdraw
   });
 
   // server/engine/board.ts
@@ -259,6 +262,8 @@ var Tarabee3Engine = (() => {
   }
   var seatOf = (state, seatNo) => state.seats.find((s) => s.seatNo === seatNo);
   var isBot = (state, seatNo) => seatOf(state, seatNo)?.isBot === true;
+  var isAway = (state, seatNo) => state.away?.includes(seatNo) === true;
+  var robot = (state, seatNo) => isBot(state, seatNo) || isAway(state, seatNo);
   var fortified = (state) => fortifiedSet(state.boardSize, state.fortifications);
   var heldCards = (state, seatNo) => state.cards.filter((c) => c.seatNo === seatNo && c.status === "held");
   function drawQuestion(state) {
@@ -325,7 +330,7 @@ var Tarabee3Engine = (() => {
     const round = currentRound(state);
     round.chooser = chooser;
     const deadline = at + state.times.choose;
-    state.phase = isBot(state, chooser) ? { kind: "choosing", deadline, botAt: planChoose(state, at, deadline) } : { kind: "choosing", deadline };
+    state.phase = robot(state, chooser) ? { kind: "choosing", deadline, botAt: planChoose(state, at, deadline) } : { kind: "choosing", deadline };
   }
   var isCorrect = (q, choice) => choice === q.correct;
   function validChoice(q, choice) {
@@ -360,7 +365,7 @@ var Tarabee3Engine = (() => {
   function openBurnWindows(state, attacker, changes, at, then, events) {
     const lost = /* @__PURE__ */ new Map();
     for (const c of changes) {
-      if (c.from === 0 || c.from === attacker) continue;
+      if (c.from === 0 || c.from === attacker || isAway(state, c.from)) continue;
       if (!heldCards(state, c.from).some((card) => card.type === "burn")) continue;
       const cells = lost.get(c.from) ?? [];
       cells.push({ row: Math.floor(c.index / state.boardSize), col: c.index % state.boardSize });
@@ -455,6 +460,9 @@ var Tarabee3Engine = (() => {
           if (round.anyAnswer) {
             const q = questionOf(state, round.questionId);
             doAnswer(state, q.type === "mcq" ? int(state, 1, 4) : int(state, 0, 1) === 1, p.deadline, events);
+          } else if (isAway(state, round.seatNo)) {
+            const q = questionOf(state, round.questionId);
+            doAnswer(state, botChoice(state, q, random(state) < BOT_ACCURACY), p.deadline, events);
           } else {
             round.result = "timeout";
             events.push({ type: "timedOut", at: p.deadline, roundId: round.id, seatNo: round.seatNo });
@@ -490,6 +498,10 @@ var Tarabee3Engine = (() => {
       } else if (p.kind === "display") {
         if (now < p.until) break;
         afterDisplay(state, p.until, events);
+      } else if (p.kind === "paused") {
+        if (now < p.until) break;
+        state.paused = void 0;
+        end(state, p.until, "cancelled", events);
       }
     }
     return { state, events };
@@ -659,6 +671,7 @@ var Tarabee3Engine = (() => {
       case "countdown":
       case "display":
       case "burn":
+      case "paused":
         return p.until;
       case "answering":
       case "choosing":
@@ -668,6 +681,102 @@ var Tarabee3Engine = (() => {
       case "ended":
         return null;
     }
+  }
+  var PAUSE_MS = 12e4;
+  var humansLeft = (state) => state.seats.filter((s) => !s.isBot).map((s) => s.seatNo);
+  function pause(state, at, events) {
+    if (state.phase.kind === "ended" || state.phase.kind === "paused") return;
+    state.paused = { at, phase: clone(state.phase) };
+    state.phase = { kind: "paused", until: at + PAUSE_MS };
+    events.push({ type: "paused", at });
+  }
+  function resume(state, at, events) {
+    if (state.phase.kind !== "paused" || !state.paused) return;
+    const delta = at - state.paused.at;
+    const p = state.paused.phase;
+    const shift = (t) => t + delta;
+    switch (p.kind) {
+      case "countdown":
+      case "display":
+        p.until = shift(p.until);
+        break;
+      case "burn":
+        p.until = shift(p.until);
+        break;
+      case "answering":
+      case "choosing":
+        p.deadline = shift(p.deadline);
+        if (p.botAt !== void 0) p.botAt = shift(p.botAt);
+        break;
+      case "group":
+        p.deadline = shift(p.deadline);
+        for (const b of p.bots) b.at = shift(b.at);
+        break;
+    }
+    const round = currentRound(state);
+    if (round && round.result === void 0) round.deadline = shift(round.deadline);
+    if (round?.displayUntil !== void 0 && p.kind === "display") round.displayUntil = shift(round.displayUntil);
+    state.phase = p;
+    state.paused = void 0;
+    events.push({ type: "resumed", at });
+  }
+  function setPresence(input, seatNo, connected, at) {
+    const bad = rejectTime(input, at);
+    if (bad) return bad;
+    const { state, events } = tick(input, at);
+    if (!seatOf(state, seatNo) || isBot(state, seatNo)) return { state, events, rejected: "not_human" };
+    if (state.phase.kind === "ended") return { state, events };
+    const away = new Set(state.away ?? []);
+    if (connected) away.delete(seatNo);
+    else away.add(seatNo);
+    state.away = [...away].sort((a, b) => a - b);
+    const p = state.phase;
+    if (connected) {
+      resume(state, at, events);
+    } else {
+      if (p.kind === "burn") {
+        for (const w of p.windows) if (w.seatNo === seatNo && !w.decided) w.decided = "skip";
+        if (p.windows.every((w) => w.decided)) finishBurn(state, at);
+      } else if (p.kind === "choosing" && currentRound(state)?.chooser === seatNo && p.botAt === void 0) {
+        p.botAt = planChoose(state, at, p.deadline);
+      }
+      if (humansLeft(state).every((h) => away.has(h))) pause(state, at, events);
+    }
+    return { state, events };
+  }
+  function withdraw(input, seatNo, at) {
+    const bad = rejectTime(input, at);
+    if (bad) return bad;
+    const { state, events } = tick(input, at);
+    const seat = seatOf(state, seatNo);
+    if (!seat || seat.isBot) return { state, events, rejected: "not_human" };
+    if (state.phase.kind === "ended") return { state, events, rejected: "not_now" };
+    seat.isBot = true;
+    state.withdrawn = [...state.withdrawn ?? [], seatNo];
+    state.away = (state.away ?? []).filter((s) => s !== seatNo);
+    events.push({ type: "withdrew", at, seatNo });
+    const round = currentRound(state);
+    const p = state.phase.kind === "paused" && state.paused ? state.paused.phase : state.phase;
+    if (p.kind === "answering" && round?.seatNo === seatNo && round.answer === void 0 && p.botAt === void 0) {
+      const plan = planAnswer(state, at, p.deadline);
+      p.botAt = Math.max(plan.botAt, at);
+      p.botCorrect = plan.correct;
+    } else if (p.kind === "choosing" && round?.chooser === seatNo && p.botAt === void 0) {
+      p.botAt = planChoose(state, at, p.deadline);
+    } else if (p.kind === "group" && !round?.groupAnswers?.some((a) => a.seatNo === seatNo)) {
+      const plan = planAnswer(state, at, p.deadline);
+      p.bots.push({ seatNo, at: Math.max(plan.botAt, at), correct: plan.correct });
+    } else if (p.kind === "burn") {
+      for (const w of p.windows) if (w.seatNo === seatNo && !w.decided) w.decided = "skip";
+      if (state.phase.kind === "burn" && p.windows.every((w) => w.decided)) finishBurn(state, at);
+    }
+    if (humansLeft(state).length === 0) {
+      state.paused = void 0;
+      end(state, at, "cancelled", events);
+    } else if (humansLeft(state).every((h) => state.away.includes(h))) {
+      pause(state, at, events);
+    }
+    return { state, events };
   }
 
   // server/engine/training.ts
@@ -755,6 +864,8 @@ var Tarabee3Engine = (() => {
         persona: { ...s.persona },
         squares: squaresOf(state.board, s.seatNo),
         boxesLeft: state.boxes[String(s.seatNo)] ?? 0,
+        ...state.away?.includes(s.seatNo) ? { away: true } : {},
+        ...state.withdrawn?.includes(s.seatNo) ? { withdrawn: true } : {},
         cards: heldCards(state, s.seatNo).map((c) => {
           const blocked = s.seatNo === forSeat ? cardBlock(state, s.seatNo, c) : null;
           return { id: c.id, type: c.type, ...c.clearCount ? { clearCount: c.clearCount } : {}, ...blocked ? { blocked } : {} };

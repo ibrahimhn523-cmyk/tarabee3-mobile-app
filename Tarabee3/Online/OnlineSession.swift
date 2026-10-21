@@ -6,8 +6,18 @@ enum SizePref: String, CaseIterable, Hashable, Sendable {
     case three = "3", four = "4", five = "5", any
 }
 
-/// المباراة السريعة أون لاين (M-06): اتصال دائم بكائن المطابقة ثم بكائن المباراة، برمز هوية فايربيس في رأس
+/// طلب مباراة جديدة بعد النتيجة كما يراه هذا الجوال (R-35).
+struct RematchPrompt: Equatable {
+    var until: Double
+    /// ردّي إن رددت.
+    var mine: Bool?
+    /// حُسم ولم أذهب لمباراة جديدة.
+    var closed: Bool
+}
+
+/// المباراة السريعة أون لاين (M-06، M-07): اتصال دائم بكائن المطابقة ثم بكائن المباراة، برمز هوية فايربيس في رأس
 /// الاتصال (قرار M-06 الثاني) لا في العنوان. الحَكَم في الخادم، والجوال يعرض ما يصله ويرسل طلبات.
+/// وإن انقطع أثناء المباراة عاد وحده (R-44، 04-tech §٢: خلال خمس ثوانٍ من عودة الشبكة).
 @MainActor
 @Observable
 final class OnlineSession: MatchSession, Identifiable {
@@ -20,6 +30,9 @@ final class OnlineSession: MatchSession, Identifiable {
 
     /// العنوان ورمز الهوية: من الخلفية عند كل اتصال، فالرمز طازج.
     typealias Endpoint = () async throws -> (base: URL, token: String)
+
+    /// المباراة الجارية محفوظة على الجهاز: فتح التطبيق ومباراته قائمة يعيده إليها (S-02).
+    static let currentMatchKey = "tarabee3.currentMatch"
 
     private(set) var stage: Stage = .idle
     private(set) var size: SizePref = .any
@@ -34,9 +47,20 @@ final class OnlineSession: MatchSession, Identifiable {
     let repliesEnabled = true
     /// اكتمل العدد بآليين: يُقال مرة في أول المباراة (05-ui §١٠).
     private(set) var filledWithBots = false
+    /// انقطع الاتصال ونحاول العودة: غطاء «إعادة الاتصال» (05-ui §٦).
+    private(set) var reconnecting = false
+    /// عاد الاتصال للتوّ: يُقال ثانيتين.
+    private(set) var reconnectedUntil: Double = 0
+    /// انتهت المباراة وهو منقطع (S-09).
+    private(set) var endedWhileAway = false
+    private(set) var rematch: RematchPrompt?
+    /// أسماء من رفض أو سكت، يُبحث عن بدلائهم (05-ui §١٠ «بديل من الخارج»).
+    private(set) var replacing: [String] = []
+    private(set) var matchId: String?
 
     private let endpoint: Endpoint
     private let session: URLSession
+    private let defaults: UserDefaults
     private let bridge = try? EngineBridge()
     private var socket: URLSessionWebSocketTask?
     /// فرق ساعة الخادم عن ساعة الجهاز (04-tech §٢: تزامن المؤقّت).
@@ -45,10 +69,13 @@ final class OnlineSession: MatchSession, Identifiable {
     private var lastReplyAt: Double = -.infinity
     private var replyCounter = 0
     private var warnedLastFive = false
+    private var withdrew = false
+    private var reconnectAttempts = 0
 
-    init(endpoint: @escaping Endpoint, session: URLSession = .shared) {
+    init(endpoint: @escaping Endpoint, session: URLSession = .shared, defaults: UserDefaults = .standard) {
         self.endpoint = endpoint
         self.session = session
+        self.defaults = defaults
     }
 
     var now: Double { Date().timeIntervalSince1970 * 1000 + offset }
@@ -58,23 +85,53 @@ final class OnlineSession: MatchSession, Identifiable {
         return nil
     }
 
-    // MARK: - البحث
+    // MARK: - البحث والعودة
 
-    /// S-06: يبحث بحجم؛ وبعد ثلاثين ثانية يُكمل الخادم بآليين (R-07).
-    func search(_ size: SizePref) {
+    /// S-06: يبحث بحجم؛ وبعد ثلاثين ثانية يُكمل الخادم بآليين (R-07). ومن وافق على مباراة جديدة يأتي بمعرّف سابقتها.
+    func search(_ size: SizePref, rematchOf previous: String? = nil) {
         self.size = size
         view = nil
         mySeat = 0
         filledWithBots = false
-        stage = .searching(until: now + 30_000)
+        endedWhileAway = false
+        rematch = nil
+        if previous == nil { replacing = [] }
+        stage = .searching(until: now + (previous == nil ? 30_000 : 20_000))
         hasOffset = false
-        Task { await connect(path: "play", query: [URLQueryItem(name: "size", value: size.rawValue)]) }
+        var query = [URLQueryItem(name: "size", value: size.rawValue)]
+        if let previous { query.append(URLQueryItem(name: "rematch", value: previous)) }
+        Task { await connect(path: "play", query: query) }
+    }
+
+    /// يعود لمباراة قائمة من الرئيسية (S-02 «عودة»).
+    func rejoin(_ id: String) {
+        matchId = id
+        stage = .playing
+        reconnecting = true
+        Task { await connect(path: "match/\(id)") }
     }
 
     func cancel() {
         socket?.cancel(with: .normalClosure, reason: nil)
         socket = nil
         stage = .idle
+        reconnecting = false
+    }
+
+    /// الانسحاب نهائي، ويحلّ آلي مكانه (R-43).
+    func withdraw() {
+        withdrew = true
+        write(["t": "withdraw"])
+        forgetMatch()
+        let task = socket
+        socket = nil
+        // يُغلق بعد أن تخرج الرسالة
+        Task { try? await Task.sleep(for: .milliseconds(300)); task?.cancel(with: .normalClosure, reason: nil) }
+        stage = .idle
+    }
+
+    private func forgetMatch() {
+        defaults.removeObject(forKey: Self.currentMatchKey)
     }
 
     private func connect(path: String, query: [URLQueryItem] = []) async {
@@ -92,15 +149,14 @@ final class OnlineSession: MatchSession, Identifiable {
             task.resume()
             await receive(task)
         } catch {
-            fail(Copy.Status.noInternet)
+            lost(nil)
         }
     }
 
     private func receive(_ task: URLSessionWebSocketTask) async {
         while socket === task {
             guard let message = try? await task.receive() else {
-                // أُغلق الاتصال: أثناء البحث يُلغى ويعود للرئيسية برسالة (S-06). والانقطاع أثناء المباراة في M-07
-                if socket === task, stage != .idle, view?.phase.kind != "ended" { fail(Copy.Online.disconnected) }
+                if socket === task { lost(task) }
                 return
             }
             let data: Data? = switch message {
@@ -112,9 +168,27 @@ final class OnlineSession: MatchSession, Identifiable {
         }
     }
 
+    /// انقطع الاتصال: أثناء البحث يُلغى ويعود للرئيسية برسالة (S-06)، وأثناء المباراة يعود وحده (R-44).
+    private func lost(_ task: URLSessionWebSocketTask?) {
+        if task != nil { socket = nil }
+        guard stage != .idle, !withdrew else { return }
+        if case .searching = stage { return fail(Copy.Status.noInternet) }
+        guard let id = matchId, view?.phase.kind != "ended" else { return }
+        reconnecting = true
+        reconnectAttempts += 1
+        // دقيقتان من المحاولات: بعدها تكون المباراة قد أُلغيت أو انتهت (R-71)
+        guard reconnectAttempts <= 60 else { return fail(Copy.Online.disconnected) }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            guard self.stage == .playing, self.socket == nil, !self.withdrew else { return }
+            await self.connect(path: "match/\(id)")
+        }
+    }
+
     private func fail(_ text: String) {
         socket?.cancel(with: .goingAway, reason: nil)
         socket = nil
+        reconnecting = false
         stage = .failed(text)
     }
 
@@ -129,6 +203,10 @@ final class OnlineSession: MatchSession, Identifiable {
         var reason: String?
         var matchId: String?
         var until: Double?
+        var responses: [String: String]?
+        var go: Bool?
+        var size: Int?
+        var previousMatchId: String?
     }
 
     /// رسالة من الخادم كما وصلت (والاختبار يمرّرها مباشرة).
@@ -153,6 +231,8 @@ final class OnlineSession: MatchSession, Identifiable {
             // يُترك اتصال المطابقة قبل أي انتظار: إغلاقه من الخادم لم يعد انقطاعاً (مراجعة M-06، المشكلة ٣)
             socket = nil
             hasOffset = false
+            matchId = id
+            defaults.set(id, forKey: Self.currentMatchKey)
             Task { await connect(path: "match/\(id)") }
         case "failed":
             fail(m.reason == "no_questions" ? Copy.Online.noQuestions : Copy.Status.serverError)
@@ -165,9 +245,26 @@ final class OnlineSession: MatchSession, Identifiable {
             replies = replies.filter { $0.until > now && $0.seat != seat } + [ReplyBubble(id: replyCounter, seat: seat, reply: reply, until: now + 2000)]
         case "rejected":
             lastRejection = m.reason
+        case "rematch":
+            handleRematch(m)
         default:
             break
         }
+    }
+
+    private func handleRematch(_ m: ServerMessage) {
+        guard let until = m.until else { return }
+        let mine = (m.responses?[String(mySeat)]).map { $0 == "accepted" }
+        if m.go == true, let n = m.size, let size = SizePref(rawValue: String(n)), let previous = m.previousMatchId {
+            // من رفض أو سكت يُبحث عن بديله عشرين ثانية ثم آلي (R-35)
+            replacing = (view?.seats ?? []).filter { !$0.isBot && $0.seatNo != mySeat && m.responses?[String($0.seatNo)] != "accepted" }.map(\.displayName)
+            socket?.cancel(with: .normalClosure, reason: nil)
+            socket = nil
+            matchId = nil
+            search(size, rematchOf: previous)
+            return
+        }
+        rematch = RematchPrompt(until: until, mine: mine ?? rematch?.mine, closed: m.go == false)
     }
 
     private func apply(_ next: MatchView, seat: Int) {
@@ -175,6 +272,13 @@ final class OnlineSession: MatchSession, Identifiable {
         if previous == nil {
             stage = .playing
             filledWithBots = next.seats.contains { $0.isBot }
+        }
+        if reconnecting {
+            reconnecting = false
+            reconnectAttempts = 0
+            reconnectedUntil = now + 2000
+            // عاد وقد انتهت: «انتهت المباراة. حُسبت في ملفك.» (S-09)
+            if next.phase.kind == "ended", previous?.phase.kind != "ended" { endedWhileAway = true }
         }
         mySeat = seat
         view = next
@@ -188,10 +292,8 @@ final class OnlineSession: MatchSession, Identifiable {
             warnedLastFive = true
             Haptics.play(Tokens.Haptics.lastFive)
         }
-        if next.phase.kind == "ended" {
-            socket?.cancel(with: .normalClosure, reason: nil)
-            socket = nil
-        }
+        // انتهت: لا عودة إليها من الرئيسية. والاتصال يبقى لطلب المباراة الجديدة
+        if next.phase.kind == "ended" { forgetMatch() }
     }
 
     // MARK: - الطلبات
@@ -211,8 +313,16 @@ final class OnlineSession: MatchSession, Identifiable {
         write(message)
     }
 
+    /// ردّي على طلب المباراة الجديدة (R-35).
+    func respondRematch(_ accept: Bool) {
+        guard var r = rematch, r.mine == nil, !r.closed, now < r.until else { return }
+        r.mine = accept
+        rematch = r
+        write(["t": "rematch", "accept": accept])
+    }
+
     /// «بعد الإرسال: مقفلة ثلاث ثوانٍ» (05-ui §٦)؛ والخادم يفرضها كذلك.
-    var canReply: Bool { stage == .playing && now - lastReplyAt >= 3000 && view?.phase.kind != "ended" }
+    var canReply: Bool { stage == .playing && !reconnecting && now - lastReplyAt >= 3000 && view?.phase.kind != "ended" }
 
     func sendReply(_ reply: Int) {
         guard canReply else { return }

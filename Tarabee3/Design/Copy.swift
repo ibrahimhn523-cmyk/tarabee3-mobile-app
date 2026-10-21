@@ -188,8 +188,21 @@ enum Copy {
         static let secondAnswer = "أرسلت إجابتك. الأولى هي المعتمدة." // §١٠
         static let disconnected = "انقطع الاتصال بالمباراة. أعد المحاولة بعد قليل."
         static let noQuestions = "تعذّر تجهيز الأسئلة. أعد المحاولة بعد قليل."
-        static let exitTitle = "الخروج من المباراة"
-        static let exitConfirm = "تخرج، وتمضي المباراة بدونك."
+        static let withdrawTitle = "الانسحاب من المباراة"
+        static let withdrawConfirm = "الانسحاب نهائي، ويحلّ آلي مكانك." // §١٠
+        static let withdraw = "انسحب"
+        static let reconnecting = "انقطع الاتصال. نعيدك الآن…" // §١٠
+        static let reconnected = "عاد الاتصال." // §١٠
+        static let paused = "المباراة متوقّفة حتى يعود لاعب." // §١٠
+        static let cancelled = "أُلغيت المباراة. لم تُحسب لأحد." // §١٠
+        static let endedBeforeReturn = "انتهت المباراة. حُسبت في ملفك." // §١٠
+        static let rematchQuestion = "مباراة جديدة بنفس اللاعبين؟" // §١٠
+        static let rematchYes = "نعم"
+        static let rematchNo = "لا"
+        static let rematchWaiting = "بانتظار ردود الباقين…"
+        static let rematchClosed = "لم تُجمع مباراة جديدة."
+        static func replacing(_ name: String) -> String { "نبحث عن لاعب مكان \(name)…" } // §١٠
+        static let away = "منقطع"
         /// الردود الجاهزة (R-34): ترتيبها هو رقمها عند الخادم.
         static let replies = ["أحسنت", "حظًّا أوفر", "سؤال صعب", "ما شاء الله", "اقتربت", "مباراة حلوة"]
         static func reply(_ i: Int) -> String { replies.indices.contains(i) ? replies[i] : "" }

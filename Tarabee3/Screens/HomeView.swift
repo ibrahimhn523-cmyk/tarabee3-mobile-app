@@ -61,6 +61,15 @@ struct HomeView: View {
             .background(palette.ground)
         }
         .appBackground()
+        // فتح التطبيق ومباراته قائمة يعيده إليها مباشرة (S-02 «عودة»)
+        .task {
+            if quickMatch == nil, let id = UserDefaults.standard.string(forKey: OnlineSession.currentMatchKey) {
+                let s = store
+                let session = OnlineSession(endpoint: { try await s.onlineEndpoint() })
+                session.rejoin(id)
+                quickMatch = session
+            }
+        }
         .fullScreenCover(item: $quickMatch) { session in
             QuickMatchView(player: player, session: session) { quickMatch = nil }.appEnvironment(appearance)
         }

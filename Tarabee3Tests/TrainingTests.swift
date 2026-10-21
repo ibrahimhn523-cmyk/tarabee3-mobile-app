@@ -368,6 +368,27 @@ final class MatchSnapshotTests: XCTestCase {
         s.receive(try JSONSerialization.data(withJSONObject: ["t": "state", "now": t, "seat": 1, "view": viewObject]))
         s.receive(try JSONSerialization.data(withJSONObject: ["t": "reply", "now": t, "seat": out.view.round?.seatNo ?? 2, "id": 0]))
         try await capture(screen, "S-10-online-replies")
+
+        // M-07: منقطع على الشارة، والتوقّف، والنتيجة بطلب مباراة جديدة، وغطاء إعادة الاتصال
+        var paused = out.view
+        if let i = paused.seats.firstIndex(where: { !$0.isBot }) { paused.seats[i].away = true }
+        paused.phase = PhaseView(kind: "paused", until: t + 120_000, deadline: nil, reason: nil, windows: nil)
+        let pausedObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(paused))
+        s.receive(try JSONSerialization.data(withJSONObject: ["t": "state", "now": t, "seat": 1, "view": pausedObject]))
+        try await capture(screen, "M-paused")
+
+        var ended = out.view
+        ended.phase = PhaseView(kind: "ended", until: nil, deadline: nil, reason: "turnsDone", windows: nil)
+        ended.ranking = ended.seats.enumerated().map { RankRow(seatNo: $1.seatNo, squares: 12 - $0 * 3, rank: $0 + 1) }
+        let endedObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ended))
+        s.receive(try JSONSerialization.data(withJSONObject: ["t": "state", "now": t, "seat": 1, "view": endedObject]))
+        s.receive(try JSONSerialization.data(withJSONObject: ["t": "rematch", "now": t, "until": t + 20_000, "responses": [String: String]()]))
+        try await capture(screen, "S-14-online-rematch")
+
+        let r = OnlineSession(endpoint: { try await Task.sleep(for: .seconds(3600)); throw URLError(.cancelled) },
+                              defaults: UserDefaults(suiteName: "snap-\(UUID().uuidString)")!)
+        r.rejoin("x")
+        try await capture(QuickMatchView(player: player, session: r, onClose: {}), "M-reconnecting")
     }
 
     /// يختار هدف الكرت: مربعات مملوكة لغيري للتفريغ، ومركز اللوح للتحصين.

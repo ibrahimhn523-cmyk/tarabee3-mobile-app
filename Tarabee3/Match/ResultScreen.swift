@@ -6,6 +6,12 @@ struct ResultScreen: View {
     let view: MatchView
     var onPlayAgain: () -> Void
     var onHome: () -> Void
+    /// رسالة أعلى النتيجة: أُلغيت، أو انتهت قبل عودته.
+    var notice: String? = nil
+    /// أون لاين: طلب مباراة جديدة بنفس اللاعبين (R-35) بدل «مباراة جديدة».
+    var rematch: RematchPrompt? = nil
+    var now: Double = 0
+    var onRematch: (Bool) -> Void = { _ in }
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -14,6 +20,7 @@ struct ResultScreen: View {
         let winners = rows.filter { $0.rank == 1 }.compactMap { view.seat($0.seatNo) }
         ScrollView {
             VStack(spacing: Space.s(4)) {
+                if let notice { StatusBanner(kind: .info, text: notice).padding(.top, Space.s(2)) }
                 VStack(spacing: Space.s(2)) {
                     HStack(spacing: Space.s(3)) {
                         ForEach(winners) { seat in
@@ -55,12 +62,33 @@ struct ResultScreen: View {
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Space.s(1)) {
-                Button(Copy.Match.playAgain, action: onPlayAgain).appButton(.primary)
+                if let rematch {
+                    rematchBox(rematch, palette)
+                } else if view.phase.reason != "cancelled" {
+                    Button(Copy.Match.playAgain, action: onPlayAgain).appButton(.primary)
+                }
                 Button(Copy.Match.home, action: onHome).appButton(.secondary)
             }
             .padding(.horizontal, Space.s(3))
             .padding(.vertical, Space.s(2))
             .background(palette.ground)
+        }
+    }
+
+    /// «مباراة جديدة بنفس اللاعبين؟» عشرين ثانية: نعم أو لا، ثم انتظار الباقين، أو لم تُجمع.
+    @ViewBuilder
+    private func rematchBox(_ r: RematchPrompt, _ palette: Palette) -> some View {
+        if r.closed || (r.mine == nil && now >= r.until) {
+            Text(Copy.Online.rematchClosed).font(.app(.small)).foregroundStyle(palette.textMuted)
+        } else if r.mine == true {
+            Text(Copy.Online.rematchWaiting).font(.app(.body, .medium)).foregroundStyle(palette.text)
+        } else if r.mine == nil {
+            Text(Copy.Online.rematchQuestion).font(.app(.body, .bold)).foregroundStyle(palette.text)
+            TimerView(deadline: r.until, total: 20_000, now: now)
+            HStack(spacing: Space.s(2)) {
+                Button(Copy.Online.rematchNo) { onRematch(false) }.appButton(.secondary)
+                Button(Copy.Online.rematchYes) { onRematch(true) }.appButton(.primary)
+            }
         }
     }
 }

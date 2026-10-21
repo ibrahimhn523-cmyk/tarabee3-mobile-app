@@ -21,7 +21,16 @@ struct MatchScreen: View {
         Group {
             if let view = session.view {
                 if view.phase.kind == "ended" {
-                    ResultScreen(view: view, onPlayAgain: onPlayAgain, onHome: onExit)
+                    TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                        let online = session as? OnlineSession
+                        ResultScreen(
+                            view: view, onPlayAgain: onPlayAgain, onHome: onExit,
+                            notice: view.phase.reason == "cancelled" ? Copy.Online.cancelled
+                                : online?.endedWhileAway == true ? Copy.Online.endedBeforeReturn : nil,
+                            rematch: online?.rematch, now: session.now,
+                            onRematch: { online?.respondRematch($0) }
+                        )
+                    }
                 } else {
                     TimelineView(.periodic(from: .now, by: 0.2)) { _ in
                         if let window = session.myBurnWindow, let until = view.phase.until {
@@ -44,16 +53,34 @@ struct MatchScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .appBackground()
+        .overlay {
+            // غطاء إعادة الاتصال (05-ui §٦): يحجب المباراة حتى يعود
+            if let online = session as? OnlineSession, online.reconnecting {
+                ZStack {
+                    palette.ground.opacity(0.92).ignoresSafeArea()
+                    VStack(spacing: Space.s(3)) {
+                        ProgressView().tint(palette.text)
+                        Text(Copy.Online.reconnecting).font(.app(.body, .bold)).foregroundStyle(palette.text)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
         .sheet(isPresented: $showCards) {
             CardsSheet(session: session) { showCards = false }
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $confirmExit) {
             VStack(alignment: .leading, spacing: Space.s(4)) {
-                Text(session.repliesEnabled ? Copy.Online.exitTitle : Copy.Match.exitTitle).font(.app(.h2, .bold)).foregroundStyle(palette.text)
-                Text(session.repliesEnabled ? Copy.Online.exitConfirm : Copy.Match.exitConfirm).font(.app(.body)).foregroundStyle(palette.text)
+                Text(session.repliesEnabled ? Copy.Online.withdrawTitle : Copy.Match.exitTitle).font(.app(.h2, .bold)).foregroundStyle(palette.text)
+                Text(session.repliesEnabled ? Copy.Online.withdrawConfirm : Copy.Match.exitConfirm).font(.app(.body)).foregroundStyle(palette.text)
                 Spacer(minLength: 0)
-                Button(Copy.Match.exit) { confirmExit = false; onExit() }.appButton(.danger)
+                // أون لاين: الانسحاب نهائي ويحلّ آلي مكانه (R-43)
+                Button(session.repliesEnabled ? Copy.Online.withdraw : Copy.Match.exit) {
+                    confirmExit = false
+                    (session as? OnlineSession)?.withdraw()
+                    onExit()
+                }.appButton(.danger)
                 Button(Copy.Settings.cancel) { confirmExit = false }.appButton(.plain).frame(maxWidth: .infinity)
             }
             .padding(Space.s(4))
@@ -76,6 +103,11 @@ struct MatchScreen: View {
 
             if kind == "countdown" {
                 CountdownView(until: view.phase.until ?? now, now: now)
+            } else if kind == "paused" {
+                // انقطع البشر كلهم: بلا سؤال ولا مؤقّت (R-71)
+                statusLine(Copy.Online.paused, palette)
+                BoardView(view: view)
+                Spacer(minLength: 0)
             } else if session.targeting != nil {
                 targetingView(view, palette)
             } else if kind == "answering" && session.isMyTurn, let round = view.round {
@@ -212,6 +244,7 @@ struct MatchScreen: View {
 
     /// تنبيه أعلى المباراة: اكتمال العدد بآليين في أولها، أو إجابة ثانية مرفوضة (05-ui §١٠).
     private func notice(_ view: MatchView) -> String? {
+        if let online = session as? OnlineSession, online.reconnectedUntil > session.now { return Copy.Online.reconnected }
         if session.lastRejection == "already_answered" { return Copy.Online.secondAnswer }
         if let online = session as? OnlineSession, online.filledWithBots, view.cycle <= 1, view.round?.id ?? 0 <= 1 { return Copy.Online.filledWithBots }
         return nil

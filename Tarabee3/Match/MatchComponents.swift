@@ -156,6 +156,8 @@ struct SeatBadge: View {
     /// في الجماعية: أجاب، بلا كشف صوابه (S-12).
     var answered = false
     var showCards = true
+    /// منقطع الآن (R-44): الشارة خافتة وتحتها «منقطع».
+    var away: Bool { seat.away == true }
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -167,6 +169,9 @@ struct SeatBadge: View {
             HStack(spacing: Space.s(0)) {
                 Text(verbatim: String(seat.squares)).font(.app(.caption, .bold)).monospacedDigit()
                 if seat.isBot { BotTag() }
+                if away {
+                    Text(Copy.Online.away).font(.app(.caption)).foregroundStyle(palette.textMuted)
+                }
                 if answered {
                     Image("icon-check").resizable().frame(width: 12, height: 12).foregroundStyle(palette.text)
                         .accessibilityLabel(Copy.Group.answered)
@@ -193,6 +198,7 @@ struct SeatBadge: View {
         }
         .padding(Space.s(1))
         .frame(maxWidth: .infinity)
+        .opacity(away ? Alpha.disabled + 0.25 : 1)
         // صاحب الدور بإطار لا بتعبئة: وسم «آلي» بلون surface-raised يبقى ظاهراً
         .background(active ? palette.surface : .clear, in: RoundedRectangle(cornerRadius: Radius.control))
         .overlay {

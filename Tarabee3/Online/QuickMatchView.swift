@@ -68,6 +68,10 @@ struct QuickMatchView: View {
                 WaitingSlot(name: player.name, persona: player.persona, team: .team1)
                 ForEach(1..<seats, id: \.self) { _ in WaitingSlot(name: nil, persona: nil, team: .team1) }
             }
+            // بعد الإعادة: نبحث عن بدلاء من رفض أو سكت (R-35)
+            ForEach(session.replacing, id: \.self) { name in
+                Text(Copy.Online.replacing("\u{2068}\(name)\u{2069}")).font(.app(.small)).foregroundStyle(palette.textMuted)
+            }
             Text(Copy.Online.botsAfter).font(.app(.small)).foregroundStyle(palette.textMuted)
             Spacer()
             Button(Copy.Settings.cancel, action: close).appButton(.secondary)

@@ -80,6 +80,9 @@ struct SeatView: Codable, Equatable, Sendable, Identifiable {
     var squares: Int
     var boxesLeft: Int
     var cards: [CardView]
+    /// منقطع (R-44)، ومنسحب صار آلياً (R-43).
+    var away: Bool?
+    var withdrawn: Bool?
 
     var id: Int { seatNo }
     /** لون المقعد من رقمه (05-ui §١). */
