@@ -38,7 +38,12 @@ final class OnlineTests: XCTestCase {
         let local = Date().timeIntervalSince1970 * 1000
         try s.receive(stateMessage(engineView(), now: local + 60_000))
         // «استعدّ» والمؤقّت بساعة الخادم: الفرق محسوب من الرسالة (R-68)
-        XCTAssertEqual(s.now, local + 60_000, accuracy: 1000)
+        // ربع ثانية حدّاً (04-tech §٢)
+        XCTAssertEqual(s.now, local + 60_000, accuracy: 250)
+        // رسالة متأخّرة في الشبكة (ساعتها أقدم) لا تُرجع العدّاد
+        let before = s.now
+        s.receive(message(["t": "rejected", "now": Date().timeIntervalSince1970 * 1000 + 60_000 - 3000, "reason": "x"]))
+        XCTAssertGreaterThanOrEqual(s.now, before)
         XCTAssertEqual(s.stage, .playing)
         XCTAssertEqual(s.mySeat, 1)
         XCTAssertTrue(s.filledWithBots, "مقعدان آليان")
@@ -87,6 +92,15 @@ final class OnlineTests: XCTestCase {
         try s.receive(stateMessage(engineView(), now: Date().timeIntervalSince1970 * 1000))
         s.receive(message(["t": "rejected", "now": 1, "reason": "already_answered"]))
         XCTAssertEqual(s.lastRejection, "already_answered")
+    }
+
+    /// «matched» يترك اتصال المطابقة فوراً: إغلاقه بعدها ليس انقطاعاً (مراجعة M-06، المشكلة ٣).
+    func testMatchedIsNotADisconnect() throws {
+        let s = session()
+        s.search(.three)
+        s.receive(message(["t": "matched", "now": Date().timeIntervalSince1970 * 1000, "matchId": String(repeating: "a", count: 64)]))
+        XCTAssertNil(s.failureText)
+        if case .searching = s.stage {} else { XCTFail("ما زال ينتظر عرض المباراة") }
     }
 
     func testFailureMessagesAndSearchState() throws {

@@ -41,6 +41,7 @@ final class OnlineSession: MatchSession, Identifiable {
     private var socket: URLSessionWebSocketTask?
     /// فرق ساعة الخادم عن ساعة الجهاز (04-tech §٢: تزامن المؤقّت).
     private var offset: Double = 0
+    private var hasOffset = false
     private var lastReplyAt: Double = -.infinity
     private var replyCounter = 0
     private var warnedLastFive = false
@@ -66,6 +67,7 @@ final class OnlineSession: MatchSession, Identifiable {
         mySeat = 0
         filledWithBots = false
         stage = .searching(until: now + 30_000)
+        hasOffset = false
         Task { await connect(path: "play", query: [URLQueryItem(name: "size", value: size.rawValue)]) }
     }
 
@@ -138,13 +140,19 @@ final class OnlineSession: MatchSession, Identifiable {
     var onSend: ((String) -> Void)?
 
     private func handle(_ m: ServerMessage) {
-        // ساعة الخادم في كل رسالة (R-68)
-        offset = m.now - Date().timeIntervalSince1970 * 1000
+        // ساعة الخادم في كل رسالة (R-68). كل عيّنة أصغر من الفرق الحقيقي بزمن وصولها، فأكبرها أقربها إليه،
+        // ورسالة تأخّرت في الشبكة لا تُرجع العدّاد (مراجعة M-06، المشكلة ٥). وتُبدأ من جديد مع كل اتصال
+        let sample = m.now - Date().timeIntervalSince1970 * 1000
+        offset = hasOffset ? max(offset, sample) : sample
+        hasOffset = true
         switch m.t {
         case "waiting":
             if let until = m.until { stage = .searching(until: until) }
         case "matched":
             guard let id = m.matchId else { return }
+            // يُترك اتصال المطابقة قبل أي انتظار: إغلاقه من الخادم لم يعد انقطاعاً (مراجعة M-06، المشكلة ٣)
+            socket = nil
+            hasOffset = false
             Task { await connect(path: "match/\(id)") }
         case "failed":
             fail(m.reason == "no_questions" ? Copy.Online.noQuestions : Copy.Status.serverError)
